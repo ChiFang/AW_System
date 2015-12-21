@@ -1,4 +1,6 @@
-﻿using System;
+﻿
+
+using System;
 
 namespace Motor
 {
@@ -12,7 +14,6 @@ namespace Motor
     {
         public double eX = 0;
         public double eY = 0;
-		
 
         public static double GetLength(rtVector tIn)
         {
@@ -35,7 +36,7 @@ namespace Motor
             double eTheta = 0;
 
             eTheta = Dot(tV1, tV2);
-            eTheta /= GetLength(tV1) + GetLength(tV2);
+            eTheta /= GetLength(tV1) * GetLength(tV2);
             eTheta = Math.Acos(eTheta) * 180.0 / Math.PI;
             return eTheta;
         }
@@ -95,6 +96,12 @@ namespace Motor
 
         /** \brief motor angle */
         public int lMotorAngle;
+
+        /** \brief Car Angle Weighting */
+        public double eCarAngleWeighting;
+
+        /** \brief false: 沒車速資訊  true: 有車速資訊 */
+        public const bool CAR_SPEED = false;
 
         /** \brief angle threshold: 判斷是否走過頭用的 */
         public const double ANGLE_TH = 90;
@@ -336,6 +343,7 @@ namespace Motor
             tRotateCenter.eY = 0;
             ucFinishFlag = (byte)rtNavigateStatus.UNDO;
             lRotationRadius = (int)DISTANCE_ERROR_SMOOTH;
+            eCarAngleWeighting = 1;
         }
 
         public static double MotorAngle_StraightErrorCal(
@@ -360,12 +368,13 @@ namespace Motor
             eDestY = a_atPathInfo[a_tMotorData.lPathNodeIndex].tDest.eY;
 
             tVS2D.eX = eDestX - eSrcX;
-            tVS2D.eY = eDestY - a_atPathInfo[a_tMotorData.lPathNodeIndex].tSrc.eY;
+            tVS2D.eY = eDestY - eSrcY;
 
             // 取右側的法向量
             tVlaw.eX = tVS2D.eY;
             tVlaw.eY = -tVS2D.eX;
 
+            // 求交點  (current point 沿著法向量與路徑的交點)
             eT = eSrcX * tVS2D.eY - eSrcY * tVS2D.eX - eCurrentX * tVS2D.eY + eCurrentY * tVS2D.eX;
             eT /= tVlaw.eX * tVS2D.eY - tVlaw.eY * tVS2D.eX;
 
@@ -537,12 +546,38 @@ namespace Motor
             return eErrorCurrent;
         }
 
+        public static double GetTheta_Path2Car(rtVector a_tV_Car, rtVector a_tV_S2D)
+        {
+            double Theta = 0;
+
+            double ThetaTmp = 0;
+
+            rtVector tVectorRotae = new rtVector(); // car current direction after rotate
+
+            Theta = rtVector.GetTheta(a_tV_Car, a_tV_S2D);
+
+            tVectorRotae.eX = a_tV_Car.eX * Math.Cos(Theta * Math.PI / 180) - Math.Sin(Theta * Math.PI / 180) * a_tV_Car.eY;
+            tVectorRotae.eY = a_tV_Car.eX * Math.Sin(Theta * Math.PI / 180) + Math.Cos(Theta * Math.PI / 180) * a_tV_Car.eY;
+
+            ThetaTmp = rtVector.GetTheta(tVectorRotae, a_tV_S2D);
+
+            if(ThetaTmp < 1)
+            {
+                return Theta;
+            }
+            else
+            {
+                return -Theta;
+            }
+        }
+
         public static void MotorAngle_Ctrl(
             rtPath_Info[] a_atPathInfo, rtLocateData a_tCurrentInfo, int a_lAGVSpeed, 
             double[] a_aeMotor_Params, ref rtMotorCtrl a_tMotorData)
         {
             double eErrorCurrent = 0, eErrorNext = 0;
-            double eCarAngle = 0, ePhi = 0; 
+            double eCarAngle = 0, ePhi = 0, eTheta = 0;
+            double eSpeedWeighting = 1;
             byte ucSinpleModeFlag = 0; // 0: OFF 1: ON
             int lPathIndex = 0;
             rtVector tV_Car = new rtVector(); // car current direction
@@ -587,12 +622,29 @@ namespace Motor
 
             a_tMotorData.eAngleErrorSum += eErrorCurrent;
 
-            eErrorNext = eErrorCurrent + (eErrorCurrent - a_tMotorData.eAngleErrorLast);
+            if (CAR_SPEED == false)
+            { // 用差值預測
+                eErrorNext = eErrorCurrent + (eErrorCurrent - a_tMotorData.eAngleErrorLast);
+            }
+            else
+            { // 用運動模型預測
 
+            }
             a_tMotorData.eAngleErrorLast = eErrorCurrent;
 
             // angle = function(Error) >> Kp*eErrorCurrent + Ki*eAngleErrorSum + Kd*eErrorNext
             a_tMotorData.lMotorAngle = (int)(a_aeMotor_Params[0] * eErrorCurrent + a_aeMotor_Params[1] * a_tMotorData.eAngleErrorSum + a_aeMotor_Params[2] * eErrorNext);
+
+            if(CAR_SPEED == false)
+            { // 沒車速資訊
+                // a_tMotorData.lMotorAngle = 
+                eTheta = GetTheta_Path2Car(tV_Car, tV_S2D);
+                eTheta = eTheta * a_tMotorData.eCarAngleWeighting;
+                a_tMotorData.lMotorAngle = (int)(a_tMotorData.lMotorAngle+eTheta);
+
+                // 這邊需要有weighting的table 暫時設為1 >> TBD
+                a_tMotorData.lMotorAngle = (int)(a_tMotorData.lMotorAngle * eSpeedWeighting);
+            }
 
 
 
