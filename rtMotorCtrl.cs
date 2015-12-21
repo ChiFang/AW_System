@@ -12,6 +12,7 @@ namespace Motor
     {
         public double eX = 0;
         public double eY = 0;
+		
 
         public static double GetLength(rtVector tIn)
         {
