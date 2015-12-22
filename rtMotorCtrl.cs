@@ -1,6 +1,14 @@
+<<<<<<< HEAD
 ﻿using System;
 
 namespace PLC_Control
+=======
+﻿
+
+using System;
+
+namespace Motor
+>>>>>>> c7a73a943646c41e67553ba599fd5bf415eaaad1
 {
     public class rtLocateData
     {
@@ -156,6 +164,7 @@ namespace PLC_Control
             return 1;
         }
 
+<<<<<<< HEAD
         public static void Init_rtPath_Info(rtPath_Info[] Src) //初始化rtPath_Info
         {
             //陣列裡面每個rtVector都需要New
@@ -167,6 +176,8 @@ namespace PLC_Control
             }
         }
 
+=======
+>>>>>>> c7a73a943646c41e67553ba599fd5bf415eaaad1
         public static void MotorPower_SetParamsLinear(int a_lErrorBoundL, int a_lErrorBoundH, double[] a_aeMotor_Params)
         {
             a_aeMotor_Params[0] = (double)(MAX_POWER- MIN_POWER) / (a_lErrorBoundH - a_lErrorBoundL);
@@ -348,11 +359,16 @@ namespace PLC_Control
             lMotorPower = 0;
             lMotorTorsion = 0;
             lMotorAngle = 0;
+<<<<<<< HEAD
 
             tRotateCenter = new rtVector();
             tRotateCenter.eX = 0;
             tRotateCenter.eY = 0;
 
+=======
+            tRotateCenter.eX = 0;
+            tRotateCenter.eY = 0;
+>>>>>>> c7a73a943646c41e67553ba599fd5bf415eaaad1
             ucFinishFlag = (byte)rtNavigateStatus.UNDO;
             lRotationRadius = (int)DISTANCE_ERROR_SMOOTH;
             eCarAngleWeighting = 1;
@@ -658,6 +674,11 @@ namespace PLC_Control
                 a_tMotorData.lMotorAngle = (int)(a_tMotorData.lMotorAngle * eSpeedWeighting);
             }
 
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> c7a73a943646c41e67553ba599fd5bf415eaaad1
             // boundary
             if (a_tMotorData.lMotorAngle > MAX_ANGLE_OFFSET_MOTOR)
             {
@@ -672,7 +693,11 @@ namespace PLC_Control
             { // 直接打正90度或負90度
                 a_tMotorData.lMotorAngle = ANGLE_ROTATION * a_tMotorData.lTurnDirection;
             }
+<<<<<<< HEAD
 			
+=======
+
+>>>>>>> c7a73a943646c41e67553ba599fd5bf415eaaad1
         }
     }
 }
