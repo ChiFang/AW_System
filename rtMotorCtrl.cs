@@ -11,61 +11,69 @@ namespace PLC_Control
 
     public struct rtLocateData
     {
+        /** \brief car position */
         public rtVector tPosition;
+
+        /** \brief car angle (direction) */
         public double eAngle;
     }
 
     public struct rtPath_Info
     {
+        /** \brief source position */
         public rtVector tSrc;
+
+        /** \brief destination position */
         public rtVector tDest;
 
+        /** \brief status of this segment */
         public byte ucStatus;
+
+        /** \brief turn ytpe of this segment */
         public byte ucTurnType;
     }
 
-    public struct Simple
-    {
-        public int Position;
-        public bool Exists;
-        public double LastValue;
-    };
-
     public class rtVectorOP
     {
-        public static double GetLength(rtVector tIn)
+        public static double GetLength(rtVector a_tIn)
         {
             double eOut = 0;
 
-            eOut = Math.Sqrt(tIn.eX*tIn.eX + tIn.eY*tIn.eY);
+            eOut = Math.Sqrt(a_tIn.eX* a_tIn.eX + a_tIn.eY* a_tIn.eY);
             return eOut;
         }
 
-        public static double Dot(rtVector tV1, rtVector tV2)
+        public static double Dot(rtVector a_tV1, rtVector a_tV2)
         {
             double eOut = 0;
 
-            eOut = tV1.eX*tV2.eX + tV1.eY*tV2.eY;
+            eOut = a_tV1.eX* a_tV2.eX + a_tV1.eY* a_tV2.eY;
             return eOut;
         }
 
-        public static double GetTheta(rtVector tV1, rtVector tV2)
+        public static double GetTheta(rtVector a_tV1, rtVector a_tV2)
         {
             double eTheta = 0;
 
-            eTheta = Dot(tV1, tV2);
-            eTheta /= GetLength(tV1) * GetLength(tV2);
+            eTheta = Dot(a_tV1, a_tV2);
+            eTheta /= GetLength(a_tV1) * GetLength(a_tV2);
             eTheta = Math.Acos(eTheta) * 180.0 / Math.PI;
             return eTheta;
         }
 
-        public static double GetDistance(rtVector tP1, rtVector tP2)
+        /**
+        \brief Get Distance of two points
+        \param a_tP1 [IN] vector 1
+        \param a_tP2 [IN] vector 2
+        \return Distance
+        */
+        public static double GetDistance(rtVector a_tP1, rtVector a_tP2)
         {
             double eDistance = 0;
             double eGapX = 0, eGapY = 0;
 
-            eGapX = tP2.eX - tP1.eX;
-            eGapY = tP2.eY - tP1.eY;
+            eGapX = a_tP2.eX - a_tP1.eX;
+            eGapY = a_tP2.eY - a_tP1.eY;
             eDistance = Math.Sqrt(eGapX* eGapX + eGapY* eGapY);
 
             return eDistance;
@@ -165,6 +173,7 @@ namespace PLC_Control
             return 1;
         }
 
+
         public rtMotorCtrl()
         {
             eAngleErrorSum = 0;
@@ -182,7 +191,12 @@ namespace PLC_Control
             eCarAngleWeighting = 1;
         }
 
-        public static void Init_rtPath_Info(rtPath_Info[] a_atPathInfo) //初始化rtPath_Info
+        /**
+        \brief initail path infomation attay
+        \param a_atPathInfo [IN] path infomation attay
+        \return void
+        */
+        public static void Init_rtPath_Info(rtPath_Info[] a_atPathInfo)
         {
             int lPathIndex = 0;
             for (lPathIndex = 0; lPathIndex < a_atPathInfo.Length-2; lPathIndex++)
@@ -204,6 +218,15 @@ namespace PLC_Control
             a_aeMotor_Params[0] = (double)(MAX_POWER- MIN_POWER) / (a_lErrorBoundH - a_lErrorBoundL);
         }
 
+
+        /**
+        \brief calculate error in straight mode of power control
+        \param a_atPathInfo [IN] path infomation attay
+        \param a_tCurrentInfo [IN] Current Info of car
+        \param a_aeMotor_Params [IN] Motor control coefficence
+        \param a_tMotorData [IN] motor data
+        \return error
+        */
         public static double MotorPower_StraightErrorCal(
             rtPath_Info[] a_atPathInfo, rtLocateData a_tCurrentInfo,
             double[] a_aeMotor_Params, ref rtMotorCtrl a_tMotorData
@@ -213,7 +236,6 @@ namespace PLC_Control
 
             rtVector tV_C2D; // current point to destination
             rtVector tV_Car; // car current direction
-
 
             eAngle = a_tCurrentInfo.eAngle;
             tV_C2D.eX = a_atPathInfo[a_tMotorData.lPathNodeIndex].tDest.eX - a_tCurrentInfo.tPosition.eX;
@@ -227,8 +249,10 @@ namespace PLC_Control
 
             // Motor power = function(Error)
             a_tMotorData.lMotorPower = (int)(a_aeMotor_Params[0] * eErrorCurrent);
+
+            // 判斷是否已超終點
             if (eTheta >= ANGLE_TH)
-            {
+            { // 超過終點 >>　必須反向行走
                 a_tMotorData.lMotorPower = -a_tMotorData.lMotorPower;
             }
 
@@ -346,26 +370,7 @@ namespace PLC_Control
                     break;
                 // 完成狀態: 似乎不會遇到這個 因為設定為 DONE 通常就 index ++了 >> TBD
                 case (byte)rtStatus.DONE:
-                    switch (a_atPathInfo[a_tMotorData.lPathNodeIndex].ucTurnType)
-                    {
-                        case (byte)rtTurnType.SIMPLE:
-                            a_tMotorData.lPathNodeIndex++;
-                            a_tMotorData.ucFinishFlag = (byte)rtNavigateStatus.UNDO;
-                            break;
-                        case (byte)rtTurnType.SMOOTH:
-                            a_tMotorData.lPathNodeIndex++;
-                            a_tMotorData.ucFinishFlag = (byte)rtNavigateStatus.UNDO;
-                            break;
-                        case (byte)rtTurnType.ARRIVE:
-                            a_tMotorData.ucFinishFlag = (byte)rtNavigateStatus.DONE;
-                            a_tMotorData.lMotorPower = 0;
-                            a_tMotorData.lMotorAngle = 0;
-                            a_tMotorData.lMotorTorsion = 0;
-                            break;
-                        default:
-                            // show error msg
-                            break;
-                    }
+                    // show error msg
                     break;
                 default:
                     // show error
@@ -561,7 +566,7 @@ namespace PLC_Control
                     break;
                 case (byte)rtTurnType.SMOOTH:
                     eDistance = rtVectorOP.GetDistance(a_tCurrentInfo.tPosition, a_tMotorData.tRotateCenter);
-                    eErrorCurrent = a_tMotorData.lRotationRadius - eDistance; // 可能會有錯誤 如果在內側非扇型區域 >> TBD
+                    eErrorCurrent = eDistance - a_tMotorData.lRotationRadius; // 可能會有錯誤 如果在內側非扇型區域 >> TBD
                     break;
                 case (byte)rtTurnType.ARRIVE:
                     // show error msg
@@ -645,8 +650,6 @@ namespace PLC_Control
                     // show error
                     break;
             }
-
-            eErrorCurrent = -eErrorCurrent; // error 左邊是正 右邊是負 >> 但轉向角 左邊得向左轉(-) 右邊得向右轉(+) 所以取負號
 
             a_tMotorData.eAngleErrorSum += eErrorCurrent;
 
