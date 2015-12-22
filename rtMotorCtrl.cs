@@ -658,8 +658,6 @@ namespace PLC_Control
                 a_tMotorData.lMotorAngle = (int)(a_tMotorData.lMotorAngle * eSpeedWeighting);
             }
 
-
-
             // boundary
             if (a_tMotorData.lMotorAngle > MAX_ANGLE_OFFSET_MOTOR)
             {
@@ -674,8 +672,6 @@ namespace PLC_Control
             { // 直接打正90度或負90度
                 a_tMotorData.lMotorAngle = ANGLE_ROTATION * a_tMotorData.lTurnDirection;
             }
-
-			
 			
         }
     }
