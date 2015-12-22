@@ -675,6 +675,8 @@ namespace PLC_Control
                 a_tMotorData.lMotorAngle = ANGLE_ROTATION * a_tMotorData.lTurnDirection;
             }
 
+			
+			
         }
     }
 }
