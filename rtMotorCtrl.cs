@@ -248,7 +248,7 @@ namespace PLC_Control
             eTheta = rtVectorOP.GetTheta(tV_Car, tV_C2D);
 
             // Motor power = function(Error)
-            a_tMotorData.lMotorPower = (int)(a_aeMotor_Params[0] * eErrorCurrent);
+            a_tMotorData.lMotorPower = (int)(a_aeMotor_Params[0] * eErrorCurrent) + MIN_POWER;
 
             // 判斷是否已超終點
             if (eTheta >= ANGLE_TH)
@@ -295,7 +295,7 @@ namespace PLC_Control
             return eErrorCurrent;
         }
 
-        public static void MotorPower_Ctrl(
+        public static double MotorPower_Ctrl(
             rtPath_Info[] a_atPathInfo, int a_lAGVSpeed, rtLocateData a_tCurrentInfo,
             double[] a_aeMotor_Params, ref rtMotorCtrl a_tMotorData)
         {
@@ -376,6 +376,8 @@ namespace PLC_Control
                     // show error
                     break;
             }
+
+            return eErrorCurrent;
         }
 
         
@@ -604,7 +606,7 @@ namespace PLC_Control
             }
         }
 
-        public static void MotorAngle_Ctrl(
+        public static double MotorAngle_Ctrl(
             rtPath_Info[] a_atPathInfo, rtLocateData a_tCurrentInfo, int a_lAGVSpeed, 
             double[] a_aeMotor_Params, ref rtMotorCtrl a_tMotorData)
         {
@@ -692,6 +694,7 @@ namespace PLC_Control
                 a_tMotorData.lMotorAngle = ANGLE_ROTATION * a_tMotorData.lTurnDirection;
             }
 
+            return eErrorCurrent;
         }
     }
 }
