@@ -89,6 +89,23 @@ namespace PLC_Control
             return eTheta;
         }
 
+        public static rtVector Rotate(rtVector a_tPoint, rtVector a_tCenter, double a_eTheta)
+        { // 角度單位是徑度 甭轉換
+            rtVector tResult = new rtVector();
+            rtVector tTmp, tTmp1;
+
+            tTmp.eX = a_tPoint.eX - a_tCenter.eX;
+            tTmp.eY = a_tPoint.eY - a_tCenter.eY;
+
+            tTmp1.eX = Math.Cos(a_eTheta) * tTmp.eX - Math.Sin(a_eTheta) * tTmp.eY;
+            tTmp1.eY = Math.Sin(a_eTheta) * tTmp.eX - Math.Cos(a_eTheta) * tTmp.eY;
+
+            tResult.eX = tTmp1.eX + a_tCenter.eX;
+            tResult.eY = tTmp1.eY + a_tCenter.eY;
+
+            return tResult;
+        }
+
         /**
         \brief Get Distance of two points
         \param a_tP1 [IN] vector 1
@@ -159,11 +176,17 @@ namespace PLC_Control
         /** \brief false: 沒車速資訊  true: 有車速資訊 */
         public const bool CAR_SPEED = false;
 
+        /** \brief 系統頻率 8Hz = 0.125s 1次 */
+        public const double FREQUENCY = 8;
+
         /** \brief angle threshold: 判斷是否走過頭用的 */
         public const double ANGLE_TH = 90;
 
         /** \brief 可以在原地打轉的角度 */
         public const int ANGLE_ROTATION = 90;
+
+        /** \brief 馬達(驅動輪胎)在這角度以內以直行計算 */
+        public const int ANGLE_TH_MOTION_PREDICT = 5;
 
         /** \brief distance threshold of simple mode: 判斷是否到達定點 開始準備轉向動作或停止 */
         public const double DISTANCE_ERROR_SIMPLE = 40;
@@ -697,13 +720,77 @@ namespace PLC_Control
             }
         }
 
-        public static rtVector Motion_Predict(
-            rtPath_Info[] a_atPathInfo, rtCarData a_tCurrentInfo,
-            ref rtMotorCtrl a_tMotorData)
+        public static rtVector Motion_Predict(rtCarData a_tCurrentInfo, rtMotorCtrl a_tMotorData)
         {
+            double eDistance = 0, eAngle = 0, eTheta = 0, eSpeed = 0, eT = 0, ePhi = 0, ePhiTest = 0;
+            double eLength_C2M = 0; // 兩輪中心到後馬達的距離 
+            double eLength_C2O = 0; // 兩輪中心到旋轉中心的距離 = 旋轉半徑
+            double eLength_R2O = 0; // 右輪中心到旋轉中心的距離 
             rtVector tNextPosition = new rtVector();
+            rtVector tV_Car, tVlaw, tRotateCenter;
 
 
+            eAngle = a_tCurrentInfo.eAngle;
+            tV_Car.eX = Math.Cos(eAngle * Math.PI / 180);
+            tV_Car.eY = Math.Sin(eAngle * Math.PI / 180);
+
+            // 取右側的法向量
+            tVlaw.eX = tV_Car.eY;
+            tVlaw.eY = -tV_Car.eX;
+
+            eTheta = Math.Abs(a_tMotorData.lMotorAngle);
+
+            eLength_C2M = rtVectorOP.GetDistance(a_tCurrentInfo.tPosition, a_tCurrentInfo.tMotorPosition);
+            eLength_C2O = Math.Tan((90-eTheta) * Math.PI / 180) * eLength_C2M;
+
+            if (eTheta > ANGLE_TH_MOTION_PREDICT)
+            { // 用車模型預測 (對圓心旋轉)
+                eT = Math.Sqrt(eLength_C2O*eLength_C2O / (tVlaw.eX*tVlaw.eX + tVlaw.eY*tVlaw.eY));
+                if(a_tMotorData.lMotorAngle >= 0)
+                {
+                    eT = -eT;
+                }
+
+                tRotateCenter.eX = a_tCurrentInfo.tPosition.eX + tVlaw.eX * eT;
+                tRotateCenter.eY = a_tCurrentInfo.tPosition.eY + tVlaw.eY * eT;
+
+                eLength_R2O = rtVectorOP.GetDistance(a_tCurrentInfo.tCarTirepositionR, tRotateCenter);
+
+                eSpeed = Math.Abs(a_tCurrentInfo.eCarTireSpeedRight) * eLength_C2O / eLength_R2O;
+
+                eDistance = eSpeed * (1 / FREQUENCY); // distance = V x T = 所旋轉的弧長
+
+                ePhi = eDistance / eLength_C2O; // 這裡單位是徑度 >> 旋轉角度 = 弧長 / 旋轉半徑
+
+                if(eT >= 0)
+                { // 旋轉中心在右邊 >> 旋轉角度要取負值
+                    ePhi = -ePhi;
+                }
+
+                if (a_tMotorData.lMotorPower < 0)
+                { // 馬達反轉 角度也要取負號
+                    ePhi = -ePhi;
+                }
+                ePhiTest = ePhi * 180 / Math.PI;
+
+                tNextPosition = rtVectorOP.Rotate(a_tCurrentInfo.tPosition, tRotateCenter, ePhi);
+            }
+            else
+            { // 直行模式
+                eSpeed = (a_tCurrentInfo.eCarTireSpeedLeft + a_tCurrentInfo.eCarTireSpeedRight) /2;
+                eDistance = eSpeed * (1 / FREQUENCY); // distance = V x T
+                if (a_tMotorData.lMotorPower >= 0)
+                {
+                    tNextPosition.eX = a_tCurrentInfo.tPosition.eX + eDistance * tV_Car.eX;
+                    tNextPosition.eY = a_tCurrentInfo.tPosition.eY + eDistance * tV_Car.eY;
+                }
+                else
+                {
+                    tNextPosition.eX = a_tCurrentInfo.tPosition.eX - eDistance * tV_Car.eX;
+                    tNextPosition.eY = a_tCurrentInfo.tPosition.eY - eDistance * tV_Car.eY;
+                }
+            }
+                
             return tNextPosition;
         }
 
