@@ -14,11 +14,25 @@ namespace PLC_Control
         /** \brief car position */
         public rtVector tPosition;
 
+        /** \brief Motor position */
+        public rtVector tMotorPosition;
+
+        /** \brief car left Tire position */
+        public rtVector tCarTirepositionL;
+
+        /** \brief car right Tire position */
+        public rtVector tCarTirepositionR;
+
         /** \brief car angle (direction) */
         public double eAngle;
 
-        /** \brief car Tire speed */
-        public double eCarTireSpeed;
+        /** \brief car left Tire speed */
+        public double eCarTireSpeedLeft;
+
+        /** \brief car right Tire speed */
+        public double eCarTireSpeedRight;
+
+
     }
 
     public struct rtPID_Coefficient
@@ -121,6 +135,9 @@ namespace PLC_Control
         /** \brief Rotation Radius of turn in smooth mode */
         public int lRotationRadius = 0;
 
+        /** \brief Rotation distance of turn in smooth mode */
+        public int lRotationDistance = 0;
+
         /** \brief rotation center of smooth turn */
         public rtVector tRotateCenter;
 
@@ -152,7 +169,7 @@ namespace PLC_Control
         public const double DISTANCE_ERROR_SIMPLE = 40;
 
         /** \brief distance threshold of smooth mode: 判斷是否到達定點 開始準備轉向動作 */
-        public const double DISTANCE_ERROR_SMOOTH = 1500;
+        public const int DISTANCE_ERROR_SMOOTH = 1500;
 
         /** \brief 判斷是否做完轉彎的動作 */
         public const double THETA_ERROR_TURN = 3;
@@ -207,7 +224,8 @@ namespace PLC_Control
             tRotateCenter.eY = 0;
 
             ucFinishFlag = (byte)rtNavigateStatus.UNDO;
-            lRotationRadius = (int)DISTANCE_ERROR_SMOOTH;
+            lRotationRadius = 0;
+            lRotationDistance = DISTANCE_ERROR_SMOOTH;
             eCarAngleWeighting = 1;
 
             tPID_PowerCoe.eKp = 0;
@@ -260,6 +278,33 @@ namespace PLC_Control
         )
         {
             double eErrorCurrent = 0, eAngle = 0, eTheta = 0;
+            rtVector tV_C2D; // current point to destination
+            rtVector tV_S2D; // source point to destination
+
+            eAngle = a_tCurrentInfo.eAngle;
+            tV_S2D.eX = a_atPathInfo[a_tMotorData.lPathNodeIndex].tDest.eX - a_atPathInfo[a_tMotorData.lPathNodeIndex].tSrc.eX;
+            tV_S2D.eY = a_atPathInfo[a_tMotorData.lPathNodeIndex].tDest.eY - a_atPathInfo[a_tMotorData.lPathNodeIndex].tSrc.eY;
+            tV_C2D.eX = a_atPathInfo[a_tMotorData.lPathNodeIndex].tDest.eX - a_tCurrentInfo.tPosition.eX;
+            tV_C2D.eY = a_atPathInfo[a_tMotorData.lPathNodeIndex].tDest.eY - a_tCurrentInfo.tPosition.eY;
+            eErrorCurrent = rtVectorOP.GetLength(tV_C2D);
+
+            eTheta = rtVectorOP.GetTheta(tV_S2D, tV_C2D);
+
+            // Motor power = function(Error)
+            a_tMotorData.lMotorPower = (int)(a_tMotorData.tPID_PowerCoe.eKp * eErrorCurrent) + MIN_POWER;
+
+            // 判斷是否已超終點
+            if (eTheta >= ANGLE_TH)
+            { // 超過終點 >>　必須反向行走
+                a_tMotorData.lMotorPower = -a_tMotorData.lMotorPower;
+            }
+
+            return eErrorCurrent;
+        }
+
+        public static bool CarDirectionVerify(rtPath_Info[] a_atPathInfo, rtCarData a_tCurrentInfo, rtMotorCtrl a_tMotorData)
+        {
+            double eErrorCurrent = 0, eAngle = 0, eTheta = 0;
 
             rtVector tV_C2D; // current point to destination
             rtVector tV_Car; // car current direction
@@ -274,16 +319,14 @@ namespace PLC_Control
 
             eTheta = rtVectorOP.GetTheta(tV_Car, tV_C2D);
 
-            // Motor power = function(Error)
-            a_tMotorData.lMotorPower = (int)(a_tMotorData.tPID_PowerCoe.eKp * eErrorCurrent) + MIN_POWER;
-
-            // 判斷是否已超終點
             if (eTheta >= ANGLE_TH)
-            { // 超過終點 >>　必須反向行走
-                a_tMotorData.lMotorPower = -a_tMotorData.lMotorPower;
+            { // 車子方向跟行走方向差太大
+                return true;
             }
-
-            return eErrorCurrent;
+            else
+            { // 車子方向跟行走方向沒有問題
+                return false;
+            }  
         }
 
         public static double MotorPower_TurnErrorCal(
@@ -439,7 +482,7 @@ namespace PLC_Control
             eT = eSrcX * tVS2D.eY - eSrcY * tVS2D.eX - eCurrentX * tVS2D.eY + eCurrentY * tVS2D.eX;
             eT /= tVlaw.eX * tVS2D.eY - tVlaw.eY * tVS2D.eX;
 
-            // 算出目前座標到切線的距離當誤差
+            // 算出目前座標到切線的距離當誤差 distance = (Vx*T)^2 + (Vy*T)^2
             eErrorCurrent = Math.Sqrt((tVlaw.eX * eT) * (tVlaw.eX * eT) + (tVlaw.eY * eT) * (tVlaw.eY * eT));
 
             if (eT > 0)
@@ -489,9 +532,9 @@ namespace PLC_Control
 
             // 取轉彎起始點
             eLength = rtVectorOP.GetLength(tVd2sCurrent);
-            eT = a_tMotorData.lRotationRadius / eLength;
+            eT = a_tMotorData.lRotationDistance / eLength;
             tCurrent.eX = tDest.eX + eT * tVd2sCurrent.eX;
-            tCurrent.eY = tDest.eX + eT * tVd2sCurrent.eY;
+            tCurrent.eY = tDest.eY + eT * tVd2sCurrent.eY;
 
             // set vector & point next
             tSrc.eX = a_atPathInfo[lPathIndex+1].tSrc.eX;
@@ -507,9 +550,9 @@ namespace PLC_Control
 
             // 取轉彎結束點
             eLength = rtVectorOP.GetLength(tVs2dNext);
-            eT = a_tMotorData.lRotationRadius / eLength;
+            eT = a_tMotorData.lRotationDistance / eLength;
             tNext.eX = tSrc.eX + eT * tVs2dNext.eX;
-            tNext.eY = tSrc.eX + eT * tVs2dNext.eY;
+            tNext.eY = tSrc.eY + eT * tVs2dNext.eY;
 
 
             // 取兩條線交點當旋轉中心座標
@@ -529,15 +572,19 @@ namespace PLC_Control
             eThetaBoundaty = rtVectorOP.GetTheta(tCenter2DestTurn, tCenter2SrcTurn);
             eThetaCurrent = rtVectorOP.GetTheta(tCenter2Current, tCenter2SrcTurn);
 
+            // 計算旋轉半徑
+            a_tMotorData.lRotationRadius = (int)Math.Round(rtVectorOP.GetDistance(tCurrent, a_tMotorData.tRotateCenter));
+           
+
             // 判斷旋轉圓心在路徑向量的左邊還是右邊
-            if(tVd2sCurrentLaw.eX != 0)
+            if (tVd2sCurrentLaw.eX != 0)
             {
-                eT = (a_tMotorData.tRotateCenter.eX - a_tMotorData.tRotateCenter.eX) / tVd2sCurrentLaw.eX;
+                eT = (a_tMotorData.tRotateCenter.eX - tCurrent.eX) / tVd2sCurrentLaw.eX;
                 
             }
             else if (tVd2sCurrentLaw.eY != 0)
             {
-                eT = (a_tMotorData.tRotateCenter.eY - a_tMotorData.tRotateCenter.eY) / tVd2sCurrentLaw.eY;
+                eT = (a_tMotorData.tRotateCenter.eY - tCurrent.eY) / tVd2sCurrentLaw.eY;
             }
             else
             {
@@ -546,11 +593,11 @@ namespace PLC_Control
             }
 
             if(eT > 0)
-            { // 點在左邊 >> 向右轉
+            { // 點在左邊 >> 馬達向右轉
                 a_tMotorData.lTurnDirection = (int)rtTurnType_Simple.TURN_RIGHT;
             }
             else if (eT < 0)
-            {
+            { // 點在右邊 >> 馬達向左轉
                 a_tMotorData.lTurnDirection = (int)rtTurnType_Simple.TURN_LEFT;
             }
             else
@@ -603,6 +650,25 @@ namespace PLC_Control
                     break;
             }
 
+
+
+            switch (a_tMotorData.lTurnDirection)
+            {
+                case (int)rtTurnType_Simple.TURN_RIGHT:
+                    // Do nothing
+                    break;
+                case (int)rtTurnType_Simple.TURN_LEFT:
+                    // inverse
+                    eErrorCurrent = -eErrorCurrent;
+                    break;
+                case (int)rtTurnType_Simple.ERROR:
+                    // show error msg
+                    break;
+                default:
+                    // show error msg
+                    break;
+            }
+
             return eErrorCurrent;
         }
 
@@ -629,6 +695,16 @@ namespace PLC_Control
             {
                 return -Theta;
             }
+        }
+
+        public static rtVector Motion_Predict(
+            rtPath_Info[] a_atPathInfo, rtCarData a_tCurrentInfo,
+            ref rtMotorCtrl a_tMotorData)
+        {
+            rtVector tNextPosition = new rtVector();
+
+
+            return tNextPosition;
         }
 
         public static double MotorAngle_Ctrl(
