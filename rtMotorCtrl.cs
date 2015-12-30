@@ -259,7 +259,7 @@ namespace PLC_Control
         public static void Init_rtPath_Info(rtPath_Info[] a_atPathInfo)
         {
             int lPathIndex = 0;
-            for (lPathIndex = 0; lPathIndex < a_atPathInfo.Length-2; lPathIndex++)
+            for (lPathIndex = 0; lPathIndex < a_atPathInfo.Length-1; lPathIndex++)
             {
                 a_atPathInfo[lPathIndex].ucStatus = (byte)rtStatus.STRAIGHT;
                 a_atPathInfo[lPathIndex].ucTurnType = (byte)rtTurnType.SMOOTH;
