@@ -181,7 +181,7 @@ namespace PLC_Control
         public const int ANGLE_TH_MOTION_PREDICT = 5;
 
         /** \brief distance threshold of simple mode: 判斷是否到達定點 開始準備轉向動作或停止 */
-        public const double DISTANCE_ERROR_SIMPLE = 40;
+        public const double DISTANCE_ERROR_SIMPLE =60;
 
         /** \brief distance threshold of smooth mode: 判斷是否到達定點 開始準備轉向動作 */
         public const int DISTANCE_ERROR_SMOOTH = 1500;
@@ -374,38 +374,55 @@ namespace PLC_Control
                     a_tMotorData.lMotorPower = (int)(a_tMotorData.tPID_PowerCoe.eKp * eErrorCurrent) + MIN_POWER;
 
                     bOverDestFlag = OverDestination(a_atPathInfo, a_tCurrentInfo.tPosition, a_tMotorData.lPathNodeIndex);
-                    if(bOverDestFlag == true)
-                    { // 超過終點 >>　必須反向行走
-                        a_tMotorData.lMotorPower = -a_tMotorData.lMotorPower;
-                    }
 
-                    switch (a_atPathInfo[a_tMotorData.lPathNodeIndex].ucTurnType)
+                    if (bOverDestFlag == true)
+                    { // 超過終點 >>　TBD
+                        // a_tMotorData.lMotorPower = -a_tMotorData.lMotorPower;
+                        eErrorCurrent = -eErrorCurrent;
+                        if(a_atPathInfo[a_tMotorData.lPathNodeIndex].ucTurnType == (byte)rtTurnType.ARRIVE)
+                        {   // 到達最終目的地
+                            a_tMotorData.lMotorPower = 0;
+                            a_tMotorData.lMotorAngle = 0;
+                            a_tMotorData.lMotorTorsion = 0;
+                            a_atPathInfo[a_tMotorData.lPathNodeIndex].ucStatus = (byte)rtStatus.DONE;
+                            a_tMotorData.ucFinishFlag = (byte)rtNavigateStatus.DONE;
+                        }
+                        else
+                        { // 趕快進入下一段 (要不要先轉正再說)
+                            a_atPathInfo[a_tMotorData.lPathNodeIndex].ucStatus = (byte)rtStatus.DONE;
+                            a_tMotorData.lPathNodeIndex++;
+                        }
+                    }
+                    else
                     {
-                        case (byte)rtTurnType.SIMPLE:
-                            if(eErrorCurrent < DISTANCE_ERROR_SIMPLE)
-                            {
-                                a_atPathInfo[a_tMotorData.lPathNodeIndex].ucStatus = (byte)rtStatus.TURN;
-                            }
-                            break;
-                        case (byte)rtTurnType.SMOOTH:
-                            if (eErrorCurrent < DISTANCE_ERROR_SMOOTH)
-                            {
-                                a_atPathInfo[a_tMotorData.lPathNodeIndex].ucStatus = (byte)rtStatus.TURN;
-                            }
-                            break;
-                        case (byte)rtTurnType.ARRIVE:
-                            if (eErrorCurrent < DISTANCE_ERROR_SIMPLE)
-                            { // 到達最終目的地
-                                a_tMotorData.lMotorPower = 0;
-                                a_tMotorData.lMotorAngle = 0;
-                                a_tMotorData.lMotorTorsion = 0;
-                                a_atPathInfo[a_tMotorData.lPathNodeIndex].ucStatus = (byte)rtStatus.DONE;
-                                a_tMotorData.ucFinishFlag = (byte)rtNavigateStatus.DONE;
-                            }
-                            break;
-                        default:
-                            // show error msg
-                            break;
+                        switch (a_atPathInfo[a_tMotorData.lPathNodeIndex].ucTurnType)
+                        {
+                            case (byte)rtTurnType.SIMPLE:
+                                if (eErrorCurrent < DISTANCE_ERROR_SIMPLE)
+                                {
+                                    a_atPathInfo[a_tMotorData.lPathNodeIndex].ucStatus = (byte)rtStatus.TURN;
+                                }
+                                break;
+                            case (byte)rtTurnType.SMOOTH:
+                                if (eErrorCurrent < DISTANCE_ERROR_SMOOTH)
+                                {
+                                    a_atPathInfo[a_tMotorData.lPathNodeIndex].ucStatus = (byte)rtStatus.TURN;
+                                }
+                                break;
+                            case (byte)rtTurnType.ARRIVE:
+                                if (eErrorCurrent < DISTANCE_ERROR_SIMPLE)
+                                { // 到達最終目的地
+                                    a_tMotorData.lMotorPower = 0;
+                                    a_tMotorData.lMotorAngle = 0;
+                                    a_tMotorData.lMotorTorsion = 0;
+                                    a_atPathInfo[a_tMotorData.lPathNodeIndex].ucStatus = (byte)rtStatus.DONE;
+                                    a_tMotorData.ucFinishFlag = (byte)rtNavigateStatus.DONE;
+                                }
+                                break;
+                            default:
+                                // show error msg
+                                break;
+                        }
                     }
                     break;
                 // 轉彎狀態
