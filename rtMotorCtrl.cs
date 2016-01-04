@@ -184,7 +184,7 @@ namespace PLC_Control
         public const double DISTANCE_ERROR_SIMPLE =60;
 
         /** \brief distance threshold of smooth mode: 判斷是否到達定點 開始準備轉向動作 */
-        public const int DISTANCE_ERROR_SMOOTH = 1500;
+        public const int DISTANCE_ERROR_SMOOTH = 1000;
 
         /** \brief 判斷是否做完轉彎的動作 */
         public const double THETA_ERROR_TURN = 5;
@@ -206,6 +206,9 @@ namespace PLC_Control
 
         /** \brief last Error for motor angle modify */
         public double eAngleErrorLast = 0;
+
+        /** \brief Ki coefficient in angle control */
+        public double eKiCoeAngle = 0;
 
 
         public static int test123(int a, int b)
@@ -249,6 +252,7 @@ namespace PLC_Control
             tPID_AngleCoe.eKp = 0;
             tPID_AngleCoe.eKi = 0;
             tPID_AngleCoe.eKd = 0;
+            eKiCoeAngle = 0;
     }
 
         /**
@@ -780,15 +784,15 @@ namespace PLC_Control
 
         public static double TargetAngle_Cal(rtCarData a_tCurrentInfo, rtMotorCtrl a_tMotorData)
         {
-            double eTargetAngle = 0, eLengthM2C = 0, eSinTheta = 0;
+            double eTargetAngle = 0, eLengthM2C = 0, eTanTheta = 0;
 
-            eLengthM2C = rtVectorOP.GetDistance(a_tCurrentInfo.tMotorPosition, a_tMotorData.tRotateCenter);
+            eLengthM2C = rtVectorOP.GetDistance(a_tCurrentInfo.tMotorPosition, a_tCurrentInfo.tPosition);
 
-            eSinTheta = a_tMotorData.lRotationRadius / eLengthM2C;
+            eTanTheta = a_tMotorData.lRotationRadius / eLengthM2C;
 
-            eTargetAngle = Math.Asin(eSinTheta);
+            eTargetAngle = Math.Atan(eTanTheta);
 
-            eTargetAngle = 90 - (eTargetAngle*180/Math.PI);
+            eTargetAngle = 90 - (eTargetAngle * 180 / Math.PI);
 
             return eTargetAngle;
         }
@@ -859,11 +863,11 @@ namespace PLC_Control
                     break;
             }
 
-            a_tMotorData.eAngleErrorSum += eErrorCurrent;
+            a_tMotorData.eAngleErrorSum = a_tMotorData.eAngleErrorSum*a_tMotorData.eKiCoeAngle + eErrorCurrent;
             a_tMotorData.eAngleErrorLast = eErrorCurrent;
 
             // angle = function(Error) >> Kp*eErrorCurrent + Ki*eAngleErrorSum + Kd*eErrorNext
-            eMototAngleTmp = a_tMotorData.tPID_AngleCoe.eKp * eErrorCurrent + a_tMotorData.tPID_AngleCoe.eKi * a_tMotorData.eAngleErrorSum + a_tMotorData.tPID_AngleCoe.eKd * eErrorNext;
+            eMototAngleTmp = a_tMotorData.tPID_AngleCoe.eKp * eErrorCurrent + a_tMotorData.tPID_AngleCoe.eKi *a_tMotorData.eAngleErrorSum + a_tMotorData.tPID_AngleCoe.eKd * eErrorNext;
 
             eMototAngleTmp = eMototAngleTmp + eTargetAngle;
 
