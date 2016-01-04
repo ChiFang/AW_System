@@ -208,7 +208,16 @@ namespace PLC_Control
         public double eAngleErrorLast = 0;
 
         /** \brief Ki coefficient in angle control */
-        public double eKiCoeAngle = 0;
+        public double eKiCoeAngle = 0.66666667;
+
+		/** \brief 轉彎角度的Offset*/
+        public double lTargetAngle;
+
+		/** \brief 預測下次的轉彎Error*/
+        public double AngleErroNext;
+
+		/** \brief 預測下次的位置資訊*/
+        public rtVector tNextPosition;
 
 
         public static int test123(int a, int b)
@@ -237,6 +246,7 @@ namespace PLC_Control
             lMotorPower = 0;
             lMotorTorsion = 0;
             lMotorAngle = 0;
+            lTargetAngle = 0;
 
             tRotateCenter.eX = 0;
             tRotateCenter.eY = 0;
@@ -253,6 +263,7 @@ namespace PLC_Control
             tPID_AngleCoe.eKi = 0;
             tPID_AngleCoe.eKd = 0;
             eKiCoeAngle = 0;
+            AngleErroNext = 0;
     }
 
         /**
@@ -844,6 +855,7 @@ namespace PLC_Control
 
                     eTargetAngle = TargetAngle_Cal(a_tCurrentInfo, a_tMotorData);
                     eTargetAngle = eTargetAngle * a_tMotorData.lTurnDirection;
+                    a_tMotorData.lTargetAngle = eTargetAngle;
 
                     // 用運動模型預測下一次轉彎誤差
                     eErrorNext = MotorAngle_TurnErrorCal(a_atPathInfo, tNextPosition, a_tMotorData);
