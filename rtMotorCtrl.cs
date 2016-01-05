@@ -1,4 +1,8 @@
-﻿using System;
+﻿
+#define rtAGV_DEBUG_PREDICT
+
+
+using System;
 
 namespace PLC_Control
 {
@@ -218,6 +222,34 @@ namespace PLC_Control
 
 		/** \brief 預測下次的位置資訊*/
         public rtVector tNextPosition;
+
+#if rtAGV_DEBUG_PREDICT
+        /** \brief 預測下次的位置資訊*/
+        public rtVector tNextPositionTest;
+
+        /** \brief 預測counter*/
+        public int lCntTest = 0;
+
+        /** \brief 預測error*/
+        public double ePredictErrorTest = 0;
+
+        public static void Test_Predict(rtCarData a_tCurrentInfo, ref rtMotorCtrl a_tMotorData)
+        {
+
+
+            a_tMotorData.tNextPositionTest = Motion_Predict(a_tCurrentInfo, a_tMotorData);
+            if(a_tMotorData.lCntTest > 0)
+            {
+                a_tMotorData.ePredictErrorTest = rtVectorOP.GetDistance(a_tCurrentInfo.tPosition, a_tMotorData.tNextPositionTest);
+            }
+            else
+            {
+                a_tMotorData.ePredictErrorTest = 0;
+            }
+            
+            a_tMotorData.lCntTest++;
+        }
+#endif
 
 
         public static int test123(int a, int b)
