@@ -235,9 +235,6 @@ namespace PLC_Control
 
         public static void Test_Predict(rtCarData a_tCurrentInfo, ref rtMotorCtrl a_tMotorData)
         {
-
-
-            a_tMotorData.tNextPositionTest = Motion_Predict(a_tCurrentInfo, a_tMotorData);
             if(a_tMotorData.lCntTest > 0)
             {
                 a_tMotorData.ePredictErrorTest = rtVectorOP.GetDistance(a_tCurrentInfo.tPosition, a_tMotorData.tNextPositionTest);
@@ -246,7 +243,8 @@ namespace PLC_Control
             {
                 a_tMotorData.ePredictErrorTest = 0;
             }
-            
+            a_tMotorData.tNextPositionTest = Motion_Predict(a_tCurrentInfo, a_tMotorData);
+
             a_tMotorData.lCntTest++;
         }
 #endif
@@ -751,12 +749,57 @@ namespace PLC_Control
             }
         }
 
+        public static double SteerAngleCal(rtCarData a_tCurrentInfo)
+        {
+            double eSteerAngleCal = 0;
+            double eDC2R = 0;
+            double eDC2L = 0;
+            double eWidth = 0;
+            double eDC2M = 0;
+            int lRegion = 0;
+
+            eDC2R = rtVectorOP.GetDistance(a_tCurrentInfo.tPosition, a_tCurrentInfo.tCarTirepositionR);
+            eDC2L = rtVectorOP.GetDistance(a_tCurrentInfo.tPosition, a_tCurrentInfo.tCarTirepositionL);
+            eWidth = (eDC2L + eDC2R) / 2;
+            eDC2M = rtVectorOP.GetDistance(a_tCurrentInfo.tPosition, a_tCurrentInfo.tMotorPosition);
+            lRegion = (int)(a_tCurrentInfo.eCarTireSpeedLeft * a_tCurrentInfo.eCarTireSpeedRight);
+            if (lRegion > 0)
+            { // 外側
+
+            }
+            else if(lRegion < 0)
+            { // 內側
+
+            }
+            else
+            { // 以某輪為圓心
+                eSteerAngleCal = (eWidth==0) ? 0 : Math.Atan(eDC2M/eWidth);
+                if (a_tCurrentInfo.eCarTireSpeedLeft > 0)
+                {
+
+                }
+                else if (a_tCurrentInfo.eCarTireSpeedRight > 0)
+                {
+
+                }
+                else
+                { // 沒車速 無法計算
+
+                }
+            }
+
+
+
+            return eSteerAngleCal;
+        }
+
         public static rtVector Motion_Predict(rtCarData a_tCurrentInfo, rtMotorCtrl a_tMotorData)
         {
             double eDistance = 0, eAngle = 0, eTheta = 0, eSpeed = 0, eT = 0, ePhi = 0, ePhiTest = 0;
             double eLength_C2M = 0; // 兩輪中心到後馬達的距離 
             double eLength_C2O = 0; // 兩輪中心到旋轉中心的距離 = 旋轉半徑
             double eLength_R2O = 0; // 右輪中心到旋轉中心的距離 
+            double eLength_L2O = 0; // 右輪中心到旋轉中心的距離
             rtVector tNextPosition = new rtVector();
             rtVector tV_Car, tVlaw, tRotateCenter;
 
@@ -786,8 +829,17 @@ namespace PLC_Control
                 tRotateCenter.eY = a_tCurrentInfo.tPosition.eY + tVlaw.eY * eT;
 
                 eLength_R2O = rtVectorOP.GetDistance(a_tCurrentInfo.tCarTirepositionR, tRotateCenter);
+                eLength_L2O = rtVectorOP.GetDistance(a_tCurrentInfo.tCarTirepositionL, tRotateCenter);
 
-                eSpeed = Math.Abs(a_tCurrentInfo.eCarTireSpeedRight) * eLength_C2O / eLength_R2O;
+                if(a_tCurrentInfo.eCarTireSpeedLeft > a_tCurrentInfo.eCarTireSpeedRight)
+                { // 往右轉
+                    eSpeed = Math.Abs(a_tCurrentInfo.eCarTireSpeedLeft) * eLength_C2O / eLength_L2O;
+                }
+                else
+                { // 往左轉
+                    eSpeed = Math.Abs(a_tCurrentInfo.eCarTireSpeedRight) * eLength_C2O / eLength_R2O;
+                }
+                
 
                 eDistance = eSpeed * (1 / FREQUENCY); // distance = V x T = 所旋轉的弧長
 
