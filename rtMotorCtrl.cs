@@ -173,7 +173,7 @@ namespace PLC_Control
         public int lMotorAngle;
 
         /** \brief motor angle read*/
-        public int lMotorAngleIn;
+        public double eMotorAngleIn;
 
         /** \brief 系統頻率 8Hz = 0.125s 1次 */
         public const double FREQUENCY = 8;
@@ -815,7 +815,7 @@ namespace PLC_Control
             tVlaw.eX = tV_Car.eY;
             tVlaw.eY = -tV_Car.eX;
 
-            eTheta = Math.Abs(a_tMotorData.lMotorAngleIn);
+            eTheta = Math.Abs(a_tMotorData.eMotorAngleIn);
 
             eLength_C2M = rtVectorOP.GetDistance(a_tCurrentInfo.tPosition, a_tCurrentInfo.tMotorPosition);
             eLength_C2O = Math.Tan((90-eTheta) * Math.PI / 180) * eLength_C2M;
@@ -823,7 +823,7 @@ namespace PLC_Control
             if (eTheta > ANGLE_TH_MOTION_PREDICT)
             { // 用車模型預測 (對圓心旋轉)
                 eT = Math.Sqrt(eLength_C2O*eLength_C2O / (tVlaw.eX*tVlaw.eX + tVlaw.eY*tVlaw.eY));
-                if(a_tMotorData.lMotorAngleIn >= 0)
+                if(a_tMotorData.eMotorAngleIn >= 0)
                 {
                     eT = -eT;
                 }
