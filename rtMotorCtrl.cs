@@ -901,6 +901,67 @@ namespace PLC_Control
             return eTargetAngle;
         }
 
+        public static double AngleDifferenceCal(rtVector a_tPathVector, double a_eCarAngle)
+        {
+            double eAngleDiff = 0;
+            double ePathAngle = 0;
+
+            if(a_tPathVector.eX == 0)
+            {
+                if (a_tPathVector.eY > 0)
+                {
+                    ePathAngle = 90;
+                }
+                else if(a_tPathVector.eY < 0)
+                {
+                    ePathAngle = -90;
+                }
+                else
+                {
+                    // show error msg
+                    ePathAngle = 999;
+                }
+            }
+            else
+            {
+                ePathAngle = Math.Atan(a_tPathVector.eY/ a_tPathVector.eX) * 180 / Math.PI;
+
+                if(ePathAngle > 0)
+                {
+                    if (a_tPathVector.eX < 0)
+                    {
+                        ePathAngle += 180;
+                    }
+                }
+                else
+                {
+                    if (a_tPathVector.eX < 0)
+                    {
+                        ePathAngle += 180;
+                    }
+                    else
+                    {
+                        ePathAngle += 360;
+                    }
+                }
+            }
+
+            eAngleDiff = ePathAngle - a_eCarAngle;
+
+            if(eAngleDiff > 180)
+            {
+                eAngleDiff -= 360;
+            }
+
+            if (eAngleDiff < -180)
+            {
+                eAngleDiff += 360;
+            }
+
+            return eAngleDiff;
+        }
+
+
         public static double MotorAngle_Ctrl(
             rtPath_Info[] a_atPathInfo, rtCarData a_tCurrentInfo, 
             ref rtMotorCtrl a_tMotorData)
