@@ -100,7 +100,7 @@ namespace PLC_Control
             tTmp.eY = a_tPoint.eY - a_tCenter.eY;
 
             tTmp1.eX = Math.Cos(a_eTheta) * tTmp.eX - Math.Sin(a_eTheta) * tTmp.eY;
-            tTmp1.eY = Math.Sin(a_eTheta) * tTmp.eX - Math.Cos(a_eTheta) * tTmp.eY;
+            tTmp1.eY = Math.Sin(a_eTheta) * tTmp.eX + Math.Cos(a_eTheta) * tTmp.eY;
 
             tResult.eX = tTmp1.eX + a_tCenter.eX;
             tResult.eY = tTmp1.eY + a_tCenter.eY;
@@ -235,6 +235,9 @@ namespace PLC_Control
 
         /** \brief 預測error*/
         public double ePredictErrorTest = 0;
+
+        /** \brief 預測實際圓心*/
+        public rtVector PredRotationCenter;
 
         public static void Test_Predict(rtCarData a_tCurrentInfo, ref rtMotorCtrl a_tMotorData)
         {
@@ -831,10 +834,13 @@ namespace PLC_Control
                 tRotateCenter.eX = a_tCurrentInfo.tPosition.eX + tVlaw.eX * eT;
                 tRotateCenter.eY = a_tCurrentInfo.tPosition.eY + tVlaw.eY * eT;
 
+                a_tMotorData.PredRotationCenter.eX = tRotateCenter.eX;
+                a_tMotorData.PredRotationCenter.eY = tRotateCenter.eY;
+
                 eLength_R2O = rtVectorOP.GetDistance(a_tCurrentInfo.tCarTirepositionR, tRotateCenter);
                 eLength_L2O = rtVectorOP.GetDistance(a_tCurrentInfo.tCarTirepositionL, tRotateCenter);
 
-                if(a_tCurrentInfo.eCarTireSpeedLeft > a_tCurrentInfo.eCarTireSpeedRight)
+                if(a_tCurrentInfo.eCarTireSpeedLeft > a_tCurrentInfo.eCarTireSpeedRight || a_tMotorData.eMotorAngleIn < 0)
                 { // 往右轉
                     eSpeed = Math.Abs(a_tCurrentInfo.eCarTireSpeedLeft) * eLength_C2O / eLength_L2O;
                 }
@@ -932,6 +938,7 @@ namespace PLC_Control
                     
                     // 用運動模型預測下一次直行誤差
                     eErrorNext = MotorAngle_StraightErrorCal(a_atPathInfo, tNextPosition, a_tMotorData);
+                    a_tMotorData.AngleErroNext = eErrorNext;
                     break;
                 // 轉彎狀態
                 case (byte)rtStatus.TURN:
@@ -946,6 +953,7 @@ namespace PLC_Control
 
                     // 用運動模型預測下一次轉彎誤差
                     eErrorNext = MotorAngle_TurnErrorCal(a_atPathInfo, tNextPosition, a_tMotorData);
+                    a_tMotorData.AngleErroNext = eErrorNext;
 
                     if (a_atPathInfo[lPathIndex].ucTurnType == (byte)rtTurnType.SIMPLE)
                     {
