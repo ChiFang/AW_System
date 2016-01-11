@@ -282,11 +282,14 @@ namespace PLC_Control
 		/** \brief 預測下次的轉彎Error*/
         public double AngleErroNext;
 
-		/** \brief 預測下次的位置資訊*/
+        /** \brief 車身改變的角度*/
+        public double eDeltaAngle;
+
+        /** \brief 預測下次的位置資訊*/
         public rtVector tNextPosition;
 
         /** \brief 跟隨路徑時角度控制的參數 */
-        rtAngle_CtrlParams tAngleCtrlParams;
+        public rtAngle_CtrlParams tAngleCtrlParams;
 
 #if rtAGV_DEBUG_PREDICT
         /** \brief 預測下次的位置資訊*/
@@ -867,7 +870,7 @@ namespace PLC_Control
 
         public static rtVector Motion_Predict(rtCarData a_tCurrentInfo, rtMotorCtrl a_tMotorData)
         {
-            double eDistance = 0, eAngle = 0, eTheta = 0, eSpeed = 0, eT = 0, ePhi = 0, ePhiTest = 0;
+            double eDistance = 0, eAngle = 0, eTheta = 0, eSpeed = 0, eT = 0, ePhi = 0, ePhiRad = 0;
             double eLength_C2M = 0; // 兩輪中心到後馬達的距離 
             double eLength_C2O = 0; // 兩輪中心到旋轉中心的距離 = 旋轉半徑
             double eLength_R2O = 0; // 右輪中心到旋轉中心的距離 
@@ -929,12 +932,15 @@ namespace PLC_Control
                 { // 馬達反轉 角度也要取負號
                     ePhi = -ePhi;
                 }
-                ePhiTest = ePhi * 180 / Math.PI;
+                ePhiRad = ePhi * 180 / Math.PI;
 
                 tNextPosition = rtVectorOP.Rotate(a_tCurrentInfo.tPosition, tRotateCenter, ePhi);
             }
             else
             { // 直行模式
+                ePhi = 0;
+                ePhiRad = ePhi * 180 / Math.PI;
+
                 eSpeed = (a_tCurrentInfo.eCarTireSpeedLeft + a_tCurrentInfo.eCarTireSpeedRight) /2;
                 eDistance = eSpeed * (1 / FREQUENCY); // distance = V x T
                 if (a_tMotorData.lMotorPower >= 0)
@@ -948,7 +954,9 @@ namespace PLC_Control
                     tNextPosition.eY = a_tCurrentInfo.tPosition.eY - eDistance * tV_Car.eY;
                 }
             }
-                
+
+            a_tMotorData.eDeltaAngle = ePhiRad;
+
             return tNextPosition;
         }
 
@@ -1140,7 +1148,7 @@ namespace PLC_Control
             // 用運動模型預測下一個座標
             tNextPosition = Motion_Predict(a_tCurrentInfo, a_tMotorData);
 
-            eCarAngleNext = rtVectorOP.Vector2Angle(tNextPosition);
+            eCarAngleNext = eCarAngle + a_tMotorData.eDeltaAngle;
             eThetaErrorNext = AngleDifferenceCal(tPathVector, eCarAngleNext);
 
             switch (a_atPathInfo[lPathIndex].ucStatus)
@@ -1184,7 +1192,7 @@ namespace PLC_Control
                     break;
             }
 
-            // decide eWightingDistance and eWightingDistanceNext >>>> 
+            // decide eWightingDistance and eWightingDistanceNext
             eWightingDistance = DecideDistanceWighting(eDistance);
             eWightingDistanceNext = DecideDistanceWighting(eDistanceNext);
 
