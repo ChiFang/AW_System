@@ -291,6 +291,12 @@ namespace PLC_Control
         /** \brief 跟隨路徑時角度控制的參數 */
         public rtAngle_CtrlParams tAngleCtrlParams;
 
+        public double Debug_eWightingDistance;
+
+        public double Debug_eDistance;
+
+        public double Debug_eThetaError;
+
 #if rtAGV_DEBUG_PREDICT
         /** \brief 預測下次的位置資訊*/
         public rtVector tNextPositionTest;
@@ -1195,6 +1201,13 @@ namespace PLC_Control
             // decide eWightingDistance and eWightingDistanceNext
             eWightingDistance = DecideDistanceWighting(eDistance);
             eWightingDistanceNext = DecideDistanceWighting(eDistanceNext);
+
+
+            a_tMotorData.Debug_eWightingDistance = eWightingDistance;
+
+            a_tMotorData.Debug_eDistance = eDistance;
+
+            a_tMotorData.Debug_eThetaError = eThetaError;
 
             eError = eWightingDistance * eDistance + (1- eWightingDistance) * a_tMotorData.tAngleCtrlParams.eAlpha* eThetaError;
             eErrorNext = eWightingDistanceNext * eDistanceNext + (1- eWightingDistanceNext) * a_tMotorData.tAngleCtrlParams.eAlpha * eThetaErrorNext;
