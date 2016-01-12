@@ -644,7 +644,7 @@ namespace PLC_Control
             tVs2dNext.eY = tDest.eY - tSrc.eY;
 
             eAngle = rtVectorOP.GetTheta(tVd2sCurrent, tVs2dNext);
-            tVd2sCurrentFix = rtVectorOP.Rotate(tVd2sCurrent, tCnter, eAngle);
+            tVd2sCurrentFix = rtVectorOP.Rotate(tVd2sCurrent, tCnter, eAngle*Math.PI/180);
             eAngleFix = rtVectorOP.GetTheta(tVd2sCurrentFix, tVs2dNext);
 
 
