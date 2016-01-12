@@ -237,9 +237,6 @@ namespace PLC_Control
         /** \brief Configure: PID Power Coeffient */
         public rtPID_Coefficient tPID_PowerCoe;
 
-        /** \brief Configure: PID angle Coeffient */
-        public rtPID_Coefficient tPID_AngleCoe;
-
         /** \brief Configure: Ki coefficient in angle control */
         public double eKiCoeAngle = 0.66666667;
 
@@ -326,10 +323,6 @@ namespace PLC_Control
             tPID_PowerCoe.eKp = 0;
             tPID_PowerCoe.eKi = 0;
             tPID_PowerCoe.eKd = 0;
-
-            tPID_AngleCoe.eKp = 0;
-            tPID_AngleCoe.eKi = 0;
-            tPID_AngleCoe.eKd = 0;
 
             eKiCoeAngle = 0;
             tAngleCtrlParams.eAlpha = 0;
@@ -1001,6 +994,9 @@ namespace PLC_Control
             bool bOutFlag = false;
             rtVector tNextPosition = new rtVector();
             rtVector tPathVector = new rtVector();
+            rtVector tPathVectorNext = new rtVector();
+            rtVector tVector = new rtVector();
+            rtVector tVectorNext = new rtVector();
 
             lPathIndex = a_tMotorData.lPathNodeIndex;
 
@@ -1008,18 +1004,20 @@ namespace PLC_Control
 
             tPathVector.eX = a_atPathInfo[lPathIndex].tDest.eX - a_atPathInfo[lPathIndex].tSrc.eX;
             tPathVector.eY = a_atPathInfo[lPathIndex].tDest.eY - a_atPathInfo[lPathIndex].tSrc.eY;
-            eThetaError = AngleDifferenceCal(tPathVector, eCarAngle);
+            
 
             // 用運動模型預測下一個座標
             tNextPosition = Motion_Predict(a_tCurrentInfo, a_tMotorData);
 
             eCarAngleNext = eCarAngle + a_tMotorData.eDeltaAngle;
-            eThetaErrorNext = AngleDifferenceCal(tPathVector, eCarAngleNext);
+            
 
             switch (a_atPathInfo[lPathIndex].ucStatus)
             {
                 // 直走狀態
                 case (byte)rtStatus.STRAIGHT:
+                    eThetaError = AngleDifferenceCal(tPathVector, eCarAngle);
+                    eThetaErrorNext = AngleDifferenceCal(tPathVector, eCarAngleNext);
                     eTargetAngle = 0;
                     eDistance = MotorAngle_StraightErrorCal(a_atPathInfo, a_tCurrentInfo.tPosition, a_tMotorData);
 
@@ -1039,6 +1037,39 @@ namespace PLC_Control
                         bOutFlag = MotorAngle_RotationCenterCal(a_atPathInfo, a_tCurrentInfo, ref a_tMotorData);
 
                         eDistance = MotorAngle_TurnErrorCal(a_atPathInfo, a_tCurrentInfo.tPosition, a_tMotorData);
+
+                        ///
+                        if(a_tMotorData.lTurnDirection == (int)rtTurnType_Simple.TURN_RIGHT)
+                        {   // 馬達向右轉
+                            tVector.eX = a_tMotorData.tRotateCenter.eX - a_tCurrentInfo.tPosition.eX;
+                            tVector.eY = a_tMotorData.tRotateCenter.eY - a_tCurrentInfo.tPosition.eY;
+                            tVectorNext.eX = a_tMotorData.tRotateCenter.eX - tNextPosition.eX;
+                            tVectorNext.eY = a_tMotorData.tRotateCenter.eY - tNextPosition.eY;
+                        }
+                        else if(a_tMotorData.lTurnDirection == (int)rtTurnType_Simple.TURN_LEFT)
+                        {   // 馬達向左轉
+                            tVector.eX = a_tCurrentInfo.tPosition.eX - a_tMotorData.tRotateCenter.eX;
+                            tVector.eY = a_tCurrentInfo.tPosition.eY - a_tMotorData.tRotateCenter.eY;
+                            tVectorNext.eX = tNextPosition.eX - a_tMotorData.tRotateCenter.eX;
+                            tVectorNext.eY = tNextPosition.eY - a_tMotorData.tRotateCenter.eY;
+                        }
+                        else
+                        {
+                            tVector.eX = 0;
+                            tVector.eY = 0;
+                            tVectorNext.eX = 0;
+                            tVectorNext.eY = 0;
+                        }
+
+                        // 取右側的法向量
+                        tPathVector.eX = tVector.eY;
+                        tPathVector.eY = -tVector.eX;
+                        tPathVectorNext.eX = tVectorNext.eY;
+                        tPathVectorNext.eY = -tVectorNext.eX;
+
+                        eThetaError = AngleDifferenceCal(tPathVector, eCarAngle);
+                        eThetaErrorNext = AngleDifferenceCal(tPathVectorNext, eCarAngleNext);
+                        ///
 
                         eTargetAngle = TargetAngle_Cal(a_tCurrentInfo, a_tMotorData);
                         eTargetAngle = eTargetAngle * a_tMotorData.lTurnDirection;
