@@ -26,7 +26,9 @@ namespace rtAGV_Sys
 	
     public class rtAGV_Control
     {
-        public enum rtAGVCmd {STOP = 0, DELIVER = 1};
+        public enum rtAGVCmd {STOP = 0, DELIVER = 1, CONTINUE = 2, PAUSE = 3, RESET = 4};
+
+        public enum rtAGVStatus { NON_INITAILIZE = 0, BUSY = 1, PAUSE = 2, STANDBY = 3, STOP = 4, EMERGENCY_STOP = 5, ERROR_NO_CFG = 6};
 
         /** \brief Configure: AGV Configure */
         public rtAGV_CFG tAGV_Cfg;
@@ -45,27 +47,36 @@ namespace rtAGV_Sys
 		
         public rtAGV_Control()
         {
-           
+            Reset(this);
         }
 
-        public void Initailize()
-        {
-
-        }
-
-        public void ExecuteCmd(uint a_ulAGV_Cmd, rtAGV_Control a_tAGVInfo)
+        public void ExecuteCmd(uint a_ulAGV_Cmd)
 		{
             uint ulAction = 0;
 
-            if (a_ulAGV_Cmd != a_tAGVInfo.ulAGV_Cmd)
+            if (a_ulAGV_Cmd != ulAGV_Cmd)
             { // 不一樣 >> 新命令
                 switch (ulAction)
                 {
+                    // 運送貨物
                     case (uint)rtAGVCmd.DELIVER:
                         Deliver();
                         break;
+                    // 停止
                     case (uint)rtAGVCmd.STOP:
                         EmergencyStop();
+                        break;
+                    // 從剛剛停止的地方繼續執行命令
+                    case (uint)rtAGVCmd.CONTINUE:
+                        Continue();
+                        break;
+                    // 暫停: 暫時停止，資料&動作先暫留
+                    case (uint)rtAGVCmd.PAUSE:
+                        Pause();
+                        break;
+                    // 重新初始化
+                    case (uint)rtAGVCmd.RESET:
+                        Reset(this);
                         break;
                     default:
                         // show error
@@ -74,8 +85,25 @@ namespace rtAGV_Sys
             }
 		}
 
+        public static void Reset(rtAGV_Control tAGV)
+        {
+
+        }
+
+        public static void Continue()
+        {
+
+        }
+
+        public static void Pause()
+        {
+
+        }
+
         public static void Deliver()
         {
+            // step 0: extract element from command
+
             // step 1: move to goods position
             Navigate();
 
