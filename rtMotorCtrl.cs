@@ -84,7 +84,7 @@ namespace PLC_Control
         public static double GetLength(rtVector a_tIn)
         {
             double eOut = 0;
-            eOut = Math.Sqrt(a_tIn.eX* a_tIn.eX + a_tIn.eY* a_tIn.eY);
+            eOut = Math.Sqrt(a_tIn.eX * a_tIn.eX + a_tIn.eY * a_tIn.eY);
             return eOut;
         }
 
@@ -92,7 +92,7 @@ namespace PLC_Control
         {
             double eOut = 0;
 
-            eOut = a_tV1.eX* a_tV2.eX + a_tV1.eY* a_tV2.eY;
+            eOut = a_tV1.eX * a_tV2.eX + a_tV1.eY * a_tV2.eY;
             return eOut;
         }
 
@@ -136,7 +136,7 @@ namespace PLC_Control
 
             eGapX = a_tP2.eX - a_tP1.eX;
             eGapY = a_tP2.eY - a_tP1.eY;
-            eDistance = Math.Sqrt(eGapX* eGapX + eGapY* eGapY);
+            eDistance = Math.Sqrt(eGapX * eGapX + eGapY * eGapY);
 
             return eDistance;
         }
@@ -188,7 +188,7 @@ namespace PLC_Control
             return eAngle;
         }
 
-    } 
+    }
 
 
     public class rtMotorCtrl
@@ -200,6 +200,9 @@ namespace PLC_Control
         public enum rtStatus { STRAIGHT = 1, TURN = 2, DONE = 0 };
 
         public enum rtTurnType { SIMPLE = 0, SMOOTH = 1, ARRIVE = 2 };
+
+        /** \brief Define: 角度對齊的閥值 */
+        public const double ANGLE_MATCH_TH = 0.5;
 
         /** \brief Define: 系統頻率 8Hz = 0.125s 1次 */
         public const double FREQUENCY = 8;
@@ -303,7 +306,7 @@ namespace PLC_Control
 
         public static void Test_Predict(rtCarData a_tCurrentInfo, ref rtMotorCtrl a_tMotorData)
         {
-            if(a_tMotorData.lCntTest > 0)
+            if (a_tMotorData.lCntTest > 0)
             {
                 a_tMotorData.ePredictErrorTest = rtVectorOP.GetDistance(a_tCurrentInfo.tPosition, a_tMotorData.tNextPositionTest);
             }
@@ -357,7 +360,7 @@ namespace PLC_Control
         public static void Init_rtPath_Info(rtPath_Info[] a_atPathInfo)
         {
             int lPathIndex = 0;
-            for (lPathIndex = 0; lPathIndex < a_atPathInfo.Length-1; lPathIndex++)
+            for (lPathIndex = 0; lPathIndex < a_atPathInfo.Length - 1; lPathIndex++)
             {
                 a_atPathInfo[lPathIndex].ucStatus = (byte)rtStatus.STRAIGHT;
                 a_atPathInfo[lPathIndex].ucTurnType = (byte)rtTurnType.SMOOTH;
@@ -395,7 +398,7 @@ namespace PLC_Control
             tV_C2D.eY = a_atPathInfo[a_lPathNodeIndex].tDest.eY - a_tPosition.eY;
 
             eTheta = rtVectorOP.GetTheta(tV_S2D, tV_C2D);
-            
+
             // 判斷是否已超終點
             if (eTheta >= ANGLE_TH)
             { // 超過終點 >>　必須反向行走
@@ -428,7 +431,7 @@ namespace PLC_Control
             else
             { // 車子方向跟行走方向沒有問題
                 return false;
-            }  
+            }
         }
 
         public static double MotorPower_TurnErrorCal(
@@ -467,7 +470,7 @@ namespace PLC_Control
                 // 直走狀態
                 case (byte)rtStatus.STRAIGHT:
                     eErrorCurrent = MotorPower_StraightErrorCal(a_atPathInfo, a_tCurrentInfo.tPosition, a_tMotorData.lPathNodeIndex);
-                    
+
                     // Motor power = function(Error)
                     a_tMotorData.lMotorPower = (int)(a_tMotorData.tPID_PowerCoe.eKp * eErrorCurrent) + MIN_POWER;
 
@@ -477,7 +480,7 @@ namespace PLC_Control
                     { // 超過終點 >>　TBD
                         // a_tMotorData.lMotorPower = -a_tMotorData.lMotorPower;
                         eErrorCurrent = -eErrorCurrent;
-                        if(a_atPathInfo[a_tMotorData.lPathNodeIndex].ucTurnType == (byte)rtTurnType.ARRIVE)
+                        if (a_atPathInfo[a_tMotorData.lPathNodeIndex].ucTurnType == (byte)rtTurnType.ARRIVE)
                         {   // 到達最終目的地
                             a_tMotorData.lMotorPower = 0;
                             a_tMotorData.lMotorAngle = 0;
@@ -564,7 +567,7 @@ namespace PLC_Control
             return eErrorCurrent;
         }
 
-        
+
 
         public static double MotorAngle_StraightErrorCal(
             rtPath_Info[] a_atPathInfo, rtVector a_tPosition,
@@ -637,11 +640,11 @@ namespace PLC_Control
             tVs2dNext.eY = tDest.eY - tSrc.eY;
 
             eAngle = rtVectorOP.GetTheta(tVd2sCurrent, tVs2dNext);
-            tVd2sCurrentFix = rtVectorOP.Rotate(tVd2sCurrent, tCnter, eAngle*Math.PI/180);
+            tVd2sCurrentFix = rtVectorOP.Rotate(tVd2sCurrent, tCnter, eAngle * Math.PI / 180);
             eAngleFix = rtVectorOP.GetTheta(tVd2sCurrentFix, tVs2dNext);
 
 
-            if(eAngle > 10)
+            if (eAngle > 10)
             {
                 if (eAngle < 1)
                 {   // 點在右邊 >> 馬達向左轉
@@ -704,7 +707,7 @@ namespace PLC_Control
             tCurrent.eY = tDest.eY + eT * tVd2sCurrent.eY;
 
             // set vector & point next
-            tSrc.eX = a_atPathInfo[lPathIndex+1].tSrc.eX;
+            tSrc.eX = a_atPathInfo[lPathIndex + 1].tSrc.eX;
             tSrc.eY = a_atPathInfo[lPathIndex + 1].tSrc.eY;
             tDest.eX = a_atPathInfo[lPathIndex + 1].tDest.eX;
             tDest.eY = a_atPathInfo[lPathIndex + 1].tDest.eY;
@@ -741,7 +744,7 @@ namespace PLC_Control
 
             // 計算旋轉半徑
             a_tMotorData.lRotationRadius = (int)Math.Round(rtVectorOP.GetDistance(tCurrent, a_tMotorData.tRotateCenter));
-           
+
             if (eThetaCurrent > eThetaBoundaty)
             {
                 return true;
@@ -758,7 +761,7 @@ namespace PLC_Control
             double eErrorCurrent = 0;
             double eDistance = 0;
             byte ucTurnType = 0;
-            
+
             ucTurnType = a_atPathInfo[a_tMotorData.lPathNodeIndex].ucTurnType;
 
             switch (ucTurnType)
@@ -813,7 +816,7 @@ namespace PLC_Control
 
             ThetaTmp = rtVectorOP.GetTheta(tVectorRotae, a_tV_S2D);
 
-            if(ThetaTmp < 1)
+            if (ThetaTmp < 1)
             {
                 return Theta;
             }
@@ -845,12 +848,12 @@ namespace PLC_Control
             eTheta = Math.Abs(a_tMotorData.eMotorAngleIn);
 
             eLength_C2M = rtVectorOP.GetDistance(a_tCurrentInfo.tPosition, a_tCurrentInfo.tMotorPosition);
-            eLength_C2O = Math.Tan((90-eTheta) * Math.PI / 180) * eLength_C2M;
+            eLength_C2O = Math.Tan((90 - eTheta) * Math.PI / 180) * eLength_C2M;
 
             if (eTheta > ANGLE_TH_MOTION_PREDICT)
             { // 用車模型預測 (對圓心旋轉)
-                eT = Math.Sqrt(eLength_C2O*eLength_C2O / (tVlaw.eX*tVlaw.eX + tVlaw.eY*tVlaw.eY));
-                if(a_tMotorData.eMotorAngleIn >= 0)
+                eT = Math.Sqrt(eLength_C2O * eLength_C2O / (tVlaw.eX * tVlaw.eX + tVlaw.eY * tVlaw.eY));
+                if (a_tMotorData.eMotorAngleIn >= 0)
                 {
                     eT = -eT;
                 }
@@ -864,7 +867,7 @@ namespace PLC_Control
                 eLength_R2O = rtVectorOP.GetDistance(a_tCurrentInfo.tCarTirepositionR, tRotateCenter);
                 eLength_L2O = rtVectorOP.GetDistance(a_tCurrentInfo.tCarTirepositionL, tRotateCenter);
 
-                if(a_tCurrentInfo.eCarTireSpeedLeft > a_tCurrentInfo.eCarTireSpeedRight || a_tMotorData.eMotorAngleIn < 0)
+                if (a_tCurrentInfo.eCarTireSpeedLeft > a_tCurrentInfo.eCarTireSpeedRight || a_tMotorData.eMotorAngleIn < 0)
                 { // 往右轉
                     eSpeed = Math.Abs(a_tCurrentInfo.eCarTireSpeedLeft) * eLength_C2O / eLength_L2O;
                 }
@@ -872,13 +875,13 @@ namespace PLC_Control
                 { // 往左轉
                     eSpeed = Math.Abs(a_tCurrentInfo.eCarTireSpeedRight) * eLength_C2O / eLength_R2O;
                 }
-                
+
 
                 eDistance = eSpeed * (1 / FREQUENCY); // distance = V x T = 所旋轉的弧長
 
                 ePhi = eDistance / eLength_C2O; // 這裡單位是徑度 >> 旋轉角度 = 弧長 / 旋轉半徑
 
-                if(eT >= 0)
+                if (eT >= 0)
                 { // 旋轉中心在右邊 >> 旋轉角度要取負值
                     ePhi = -ePhi;
                 }
@@ -896,7 +899,7 @@ namespace PLC_Control
                 ePhi = 0;
                 ePhiRad = ePhi * 180 / Math.PI;
 
-                eSpeed = (a_tCurrentInfo.eCarTireSpeedLeft + a_tCurrentInfo.eCarTireSpeedRight) /2;
+                eSpeed = (a_tCurrentInfo.eCarTireSpeedLeft + a_tCurrentInfo.eCarTireSpeedRight) / 2;
                 eDistance = eSpeed * (1 / FREQUENCY); // distance = V x T
                 if (a_tMotorData.lMotorPower >= 0)
                 {
@@ -930,6 +933,25 @@ namespace PLC_Control
             return eTargetAngle;
         }
 
+        public static double DeltaAngleCal(double a_eInputAngle, double a_eTargetAngle)
+        {
+            double eDeltaAngle = 0;
+
+            eDeltaAngle = a_eTargetAngle - a_eInputAngle;
+
+            if (eDeltaAngle > 180)
+            {
+                eDeltaAngle -= 360;
+            }
+
+            if (eDeltaAngle < -180)
+            {
+                eDeltaAngle += 360;
+            }
+
+            return eDeltaAngle;
+        }
+
         public static double AngleDifferenceCal(rtVector a_tPathVector, double a_eCarAngle)
         {
             double eAngleDiff = 0;
@@ -937,17 +959,19 @@ namespace PLC_Control
 
             ePathAngle = rtVectorOP.Vector2Angle(a_tPathVector);
 
-            eAngleDiff = ePathAngle - a_eCarAngle;
+            eAngleDiff = DeltaAngleCal(a_eCarAngle, ePathAngle);
 
-            if(eAngleDiff > 180)
-            {
-                eAngleDiff -= 360;
-            }
+            //eAngleDiff = ePathAngle - a_eCarAngle;
 
-            if (eAngleDiff < -180)
-            {
-                eAngleDiff += 360;
-            }
+            //if (eAngleDiff > 180)
+            //{
+            //    eAngleDiff -= 360;
+            //}
+
+            //if (eAngleDiff < -180)
+            //{
+            //    eAngleDiff += 360;
+            //}
 
             return eAngleDiff;
         }
@@ -959,21 +983,21 @@ namespace PLC_Control
 
             double eWightingDistance = 0;
             double eDistanceH = 1000;
-            double eDistanceL = 100;
+            double eDistanceL = 50;
             double eWightingH = 1;
-            double eWightingL = 0.1;
+            double eWightingL = 0.15;
 
             if (a_eDistance > eDistanceH)
             { // 全看距離
                 eWightingDistance = eWightingH;
             }
-            else if(a_eDistance < eDistanceL)
+            else if (a_eDistance < eDistanceL)
             { // 最低權限
                 eWightingDistance = eWightingL;
             }
             else
             { // 線性計算
-                eWightingDistance = eWightingL + (a_eDistance - eDistanceL) * (eWightingH - eWightingL) /(eDistanceH - eDistanceL);
+                eWightingDistance = eWightingL + (a_eDistance - eDistanceL) * (eWightingH - eWightingL) / (eDistanceH - eDistanceL);
             }
 
             return eWightingDistance;
@@ -1004,13 +1028,13 @@ namespace PLC_Control
 
             tPathVector.eX = a_atPathInfo[lPathIndex].tDest.eX - a_atPathInfo[lPathIndex].tSrc.eX;
             tPathVector.eY = a_atPathInfo[lPathIndex].tDest.eY - a_atPathInfo[lPathIndex].tSrc.eY;
-            
+
 
             // 用運動模型預測下一個座標
             tNextPosition = Motion_Predict(a_tCurrentInfo, a_tMotorData);
 
             eCarAngleNext = eCarAngle + a_tMotorData.eDeltaAngle;
-            
+
 
             switch (a_atPathInfo[lPathIndex].ucStatus)
             {
@@ -1039,14 +1063,14 @@ namespace PLC_Control
                         eDistance = MotorAngle_TurnErrorCal(a_atPathInfo, a_tCurrentInfo.tPosition, a_tMotorData);
 
                         ///
-                        if(a_tMotorData.lTurnDirection == (int)rtTurnType_Simple.TURN_RIGHT)
+                        if (a_tMotorData.lTurnDirection == (int)rtTurnType_Simple.TURN_RIGHT)
                         {   // 馬達向右轉
                             tVector.eX = a_tMotorData.tRotateCenter.eX - a_tCurrentInfo.tPosition.eX;
                             tVector.eY = a_tMotorData.tRotateCenter.eY - a_tCurrentInfo.tPosition.eY;
                             tVectorNext.eX = a_tMotorData.tRotateCenter.eX - tNextPosition.eX;
                             tVectorNext.eY = a_tMotorData.tRotateCenter.eY - tNextPosition.eY;
                         }
-                        else if(a_tMotorData.lTurnDirection == (int)rtTurnType_Simple.TURN_LEFT)
+                        else if (a_tMotorData.lTurnDirection == (int)rtTurnType_Simple.TURN_LEFT)
                         {   // 馬達向左轉
                             tVector.eX = a_tCurrentInfo.tPosition.eX - a_tMotorData.tRotateCenter.eX;
                             tVector.eY = a_tCurrentInfo.tPosition.eY - a_tMotorData.tRotateCenter.eY;
@@ -1090,11 +1114,11 @@ namespace PLC_Control
             }
 
             // decide eWightingDistance and eWightingDistanceNext
-            eWightingDistance = DecideDistanceWighting(eDistance);
-            eWightingDistanceNext = DecideDistanceWighting(eDistanceNext);
+            eWightingDistance = DecideDistanceWighting(Math.Abs(eDistance));
+            eWightingDistanceNext = DecideDistanceWighting(Math.Abs(eDistanceNext));
 
-            eError = eWightingDistance * eDistance + (1- eWightingDistance) * a_tMotorData.tAngleCtrlParams.eAlpha* eThetaError;
-            eErrorNext = eWightingDistanceNext * eDistanceNext + (1- eWightingDistanceNext) * a_tMotorData.tAngleCtrlParams.eAlpha * eThetaErrorNext;
+            eError = eWightingDistance * eDistance + (1 - eWightingDistance) * a_tMotorData.tAngleCtrlParams.eAlpha * eThetaError;
+            eErrorNext = eWightingDistanceNext * eDistanceNext + (1 - eWightingDistanceNext) * a_tMotorData.tAngleCtrlParams.eAlpha * eThetaErrorNext;
 
             a_tMotorData.eAngleErroNext = eErrorNext;
             a_tMotorData.eAngleErrorSum = a_tMotorData.eAngleErrorSum * a_tMotorData.eKiCoeAngle + eError;
@@ -1122,6 +1146,44 @@ namespace PLC_Control
             }
 
             return eError;
+        }
+
+        public static bool CarAngleAlignment(double a_eTargetAngle, rtCarData a_tCurrentInfo, rtMotorCtrl a_tMotorData)
+        {
+            bool bMatched = false;
+            double eAngleError = 0;
+            double eAngleDelay = 0;
+
+            eAngleError = DeltaAngleCal(a_tCurrentInfo.eAngle, a_eTargetAngle);
+
+            if (Math.Abs(eAngleError) < ANGLE_MATCH_TH)
+            {
+                a_tMotorData.lMotorPower = 0;
+                a_tMotorData.lMotorAngle = 0;
+                bMatched = true;
+            }
+            else
+            {
+                if(eAngleError > 0)
+                {
+                    a_tMotorData.lMotorAngle = ANGLE_ROTATION;
+                }
+                else
+                {
+                    a_tMotorData.lMotorAngle = -ANGLE_ROTATION;
+                }
+                eAngleDelay = a_tMotorData.lMotorAngle - a_tMotorData.eMotorAngleIn;
+                if(Math.Abs(eAngleDelay) < ANGLE_MATCH_TH)
+                {
+                    a_tMotorData.lMotorPower = TURN_POWER;
+                }
+                else
+                {
+                    a_tMotorData.lMotorPower = 0;
+                }
+                bMatched = false;
+            }
+            return bMatched;
         }
     }
 }
