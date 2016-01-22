@@ -294,6 +294,12 @@ namespace PLC_Control
         /** \brief Output Data: 預測實際圓心*/
         public rtVector PredRotationCenter;
 
+        public double Debug_eWightingDistance;
+
+        public double Debug_eDistance;
+
+        public double Debug_eThetaError;
+
 #if rtAGV_DEBUG_PREDICT
         /** \brief Output Data: 預測下次的位置資訊*/
         public rtVector tNextPositionTest;
