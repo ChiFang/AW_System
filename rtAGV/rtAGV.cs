@@ -323,6 +323,131 @@ namespace rtAGV_Sys
             }
         }
 
+        //2016/01/25 Lee Add
+        public bool LOADbMatched = false;//是否完成接近貨物
+        public int LOADCount = 0;//取貨進度計數
+        public bool UnLOADbMatched = false;//是否完成接近貨物
+        public int UnLOADCount = 0;//取貨進度計數
+        public enum ForkLODAStatus { SetHeight, Forth, Backward, Pickup, Finished };   //堆高機貨叉狀態宣告
+        public enum ForkUnLODAStatus { SetHeight, Forth, Backward, PutDown, Finished };   //堆高機貨叉狀態宣告
+        public ForkLODAStatus ForkLoStatus = new ForkLODAStatus(); //堆高機取貨貨叉運形狀態
+        public ForkUnLODAStatus ForkUnLoStatus = new ForkUnLODAStatus(); //堆高機放貨貨叉運形狀態
+
+        public static void LOAD_FotTest(rtWarehousingInfo a_tLocatData, rtMotorCtrl a_tMotorData, rtAGV_Control a_tAGV_Class, ref rtAGV_Data a_tAGV_Data)
+        {
+            if (!a_tAGV_Class.LOADbMatched)
+            {
+                a_tAGV_Class.LOADbMatched = rtMotorCtrl.CarAngleAlignment(a_tLocatData.eDirection, a_tAGV_Data.tCarInfo, a_tMotorData);
+            }
+            else
+            {
+                if (a_tAGV_Class.LOADCount == 0)
+                {
+                    // step 0: 升到貨物的高度+ x mm ?? 
+                    MainForm.obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_DM, "20", Convert.ToInt16(a_tLocatData.eHeight));
+                    MainForm.obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_MR, "007", 1);
+                    MainForm.obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_MR, "010", 0);
+                    a_tAGV_Class.ForkLoStatus = ForkLODAStatus.SetHeight;
+                }
+                if (a_tAGV_Class.ForkLoStatus == ForkLODAStatus.SetHeight)
+                {
+                    int ForkHeightStatus = MainForm.obj_PLC.doReadDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_MR, "010");
+                    if (ForkHeightStatus != 0)
+                    {
+                        // step 1: 伸貨叉
+                        a_tAGV_Class.ForkLoStatus = ForkLODAStatus.Forth;
+                        a_tAGV_Class.LOADCount = 100000;
+                        MainForm.obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_DM, "1", 3250);//貨插-往前
+                    }
+                }
+                if (a_tAGV_Class.LOADCount == 104500)
+                {
+                    // step 2: 抬起貨物
+                    MainForm.obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_DM, "1", 2000);//貨插-停
+                    MainForm.obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_DM, "20", Convert.ToInt16(a_tLocatData.eHeight) + 10);
+                    MainForm.obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_MR, "007", 1);
+                    MainForm.obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_MR, "010", 0);
+                    a_tAGV_Class.ForkLoStatus = ForkLODAStatus.Pickup;
+                }
+                if (a_tAGV_Class.ForkLoStatus == ForkLODAStatus.Pickup)
+                {
+                    int ForkHeightStatus = MainForm.obj_PLC.doReadDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_MR, "010");
+                    if (ForkHeightStatus != 0)
+                    {
+                        // step 3: 收貨叉
+                        a_tAGV_Class.ForkLoStatus = ForkLODAStatus.Backward;
+                        a_tAGV_Class.LOADCount = 200000;
+                        MainForm.obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_DM, "1", 750);//貨插-往後
+                    }
+                }
+                if (a_tAGV_Class.LOADCount == 204500)
+                {
+                    // step 4:結束
+                    MainForm.obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_DM, "1", 2000);//貨插-停
+                    a_tAGV_Class.ForkLoStatus = ForkLODAStatus.Finished;
+                }
+                a_tAGV_Class.LOADCount += 50;
+                Console.WriteLine(a_tAGV_Class.LOADCount);
+            }
+        }
+
+        public static void UNLOAD_ForTest(rtWarehousingInfo a_tLocatData, rtMotorCtrl a_tMotorData, rtAGV_Control a_tAGV_Class, ref rtAGV_Data a_tAGV_Data)
+        {
+            if (!a_tAGV_Class.UnLOADbMatched)
+            {   // 一直執行到 對齊為止 >> 另有執行緒 隨時更新 a_tAGV_Data.tCurrentInfo
+                a_tAGV_Class.UnLOADbMatched = rtMotorCtrl.CarAngleAlignment(a_tLocatData.eDirection, a_tAGV_Data.tCarInfo, a_tMotorData);
+            }
+            else
+            {
+                if (a_tAGV_Class.UnLOADCount == 0)
+                {
+                    // step 0: 升到貨物的高度+ x mm ?? 
+                    MainForm.obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_DM, "20", Convert.ToInt16(a_tLocatData.eHeight) + 10);
+                    MainForm.obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_MR, "007", 1);
+                    MainForm.obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_MR, "010", 0);
+                    a_tAGV_Class.ForkUnLoStatus = ForkUnLODAStatus.SetHeight;
+                }
+                if (a_tAGV_Class.ForkUnLoStatus == ForkUnLODAStatus.SetHeight)
+                {
+                    int ForkHeightStatus = MainForm.obj_PLC.doReadDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_MR, "010");
+                    if (ForkHeightStatus != 0)
+                    {
+                        // step 1: 伸貨叉
+                        a_tAGV_Class.ForkUnLoStatus = ForkUnLODAStatus.Forth;
+                        a_tAGV_Class.UnLOADCount = 100000;
+                        MainForm.obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_DM, "1", 3250);//貨插-往前
+                    }
+                }
+                if (a_tAGV_Class.UnLOADCount == 104500)
+                {
+                    // step 2: 降貨叉 (下降 x mm ??)
+                    MainForm.obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_DM, "1", 2000);//貨插-停
+                    MainForm.obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_DM, "20", Convert.ToInt16(a_tLocatData.eHeight));
+                    MainForm.obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_MR, "007", 1);
+                    MainForm.obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_MR, "010", 0);
+                    a_tAGV_Class.ForkUnLoStatus = ForkUnLODAStatus.PutDown;
+                }
+                if (a_tAGV_Class.ForkUnLoStatus == ForkUnLODAStatus.PutDown)
+                {
+                    int ForkHeightStatus = MainForm.obj_PLC.doReadDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_MR, "010");
+                    if (ForkHeightStatus != 0)
+                    {
+                        // step 3: 收貨叉
+                        a_tAGV_Class.ForkUnLoStatus = ForkUnLODAStatus.Backward;
+                        a_tAGV_Class.UnLOADCount = 200000;
+                        MainForm.obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_DM, "1", 750);//貨插-往後
+                    }
+                }
+                if (a_tAGV_Class.UnLOADCount == 204500)
+                {
+                    // step 4:結束
+                    MainForm.obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_DM, "1", 2000);//貨插-停
+                    a_tAGV_Class.ForkUnLoStatus = ForkUnLODAStatus.Finished;
+                }
+                a_tAGV_Class.UnLOADCount += 50;
+            }
+        }
+
         public static void EmergencyStop()
         {
 
