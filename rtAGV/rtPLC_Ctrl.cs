@@ -1357,9 +1357,10 @@ namespace PLC_Control
                 // 算出目標車身角度與當下車身角度的差距
                 eDeltaCarAngle = AngleDifferenceCal(tTargetCarVector, eCarAngle);
 
+                // 用角度差距算出 適當的車輪馬達轉角
+                eMototAngleTmp = MotorAngleCal(eDeltaCarAngle, 0, a_tMotorData.tAngleCtrlParams);
 
-                eMototAngleTmp = 0;
-
+                // 加上之前的角度 offset
                 eMototAngleTmp = eMototAngleTmp + eMotorAngleOffset;
 
                 a_tMotorData.lMotorAngle = (int)(Math.Round(eMototAngleTmp));
@@ -1375,7 +1376,7 @@ namespace PLC_Control
                 }
             }
 
-            return eError;
+            return eDistance;
         }
     }
 }
