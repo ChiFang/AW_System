@@ -159,7 +159,7 @@ namespace PLC_Control
         }
     }
 
-        public class rtMotorCtrl
+    public class rtMotorCtrl
     {
         public enum rtNavigateStatus { UNDO = 0, DONE = 1 };
 
@@ -378,35 +378,7 @@ namespace PLC_Control
             return false;
         }
 
-        public static bool CarDirectionVerify(rtPath_Info[] a_atPathInfo, rtCarData a_tCurrentInfo, rtMotorCtrl a_tMotorData)
-        {
-            double eErrorCurrent = 0, eAngle = 0, eTheta = 0;
-
-            rtVector tV_C2D; // current point to destination
-            rtVector tV_Car; // car current direction
-
-            eAngle = a_tCurrentInfo.eAngle;
-            tV_C2D.eX = a_atPathInfo[a_tMotorData.lPathNodeIndex].tDest.eX - a_tCurrentInfo.tPosition.eX;
-            tV_C2D.eY = a_atPathInfo[a_tMotorData.lPathNodeIndex].tDest.eY - a_tCurrentInfo.tPosition.eY;
-            eErrorCurrent = rtVectorOP.GetLength(tV_C2D);
-
-            tV_Car.eX = Math.Cos(eAngle * Math.PI / 180);
-            tV_Car.eY = Math.Sin(eAngle * Math.PI / 180);
-
-            eTheta = rtVectorOP.GetTheta(tV_Car, tV_C2D);
-
-            if (eTheta >= ANGLE_TH)
-            { // 車子方向跟行走方向差太大
-                return true;
-            }
-            else
-            { // 車子方向跟行走方向沒有問題
-                return false;
-            }
-        }
-
-        public static double MotorPower_TurnErrorCal(
-            rtPath_Info[] a_atPathInfo, rtVector a_tPosition, double a_eCarAngle, int a_lPathNodeIndex)
+        public static double MotorPower_TurnErrorCal(rtPath_Info[] a_atPathInfo, rtVector a_tPosition, double a_eCarAngle, int a_lPathNodeIndex)
         {
             double eErrorCurrent = 0, eTheta = 0;
             int lNextPathID = 0;
@@ -1018,7 +990,7 @@ namespace PLC_Control
         }
 
 
-        public static double DecideDistanceWighting(double a_eDistance)
+        public static double DecideDistanceWighting_old(double a_eDistance)
         {
             // 暫時 hard code 之後得加入 configure 設定
 
@@ -1039,6 +1011,39 @@ namespace PLC_Control
             else
             { // 線性計算
                 eWightingDistance = eWightingL + (a_eDistance - eDistanceL) * (eWightingH - eWightingL) / (eDistanceH - eDistanceL);
+            }
+
+            return eWightingDistance;
+        }
+
+        public static double DecideDistanceWighting(double a_eDistance, double a_eTheta)
+        {
+            // 暫時 hard code 之後得加入 configure 設定
+
+            double eWightingDistance = 0;
+            double eDistanceLimitH = 500;
+            double eDistanceLimitL = 30;
+            double eDistanceH = 1000;
+            double eDistanceL = 0;
+            double eThetaH = 20;
+            double eThetaL = 0;
+            double ePartDistance = 0, ePartTheta = 0;
+            double eWightingH = 1;
+            double eWightingL = 0.15;
+
+            if (a_eDistance > eDistanceLimitH)
+            { // 全看距離
+                eWightingDistance = eWightingH;
+            }
+            else if (a_eDistance < eDistanceLimitL)
+            { // 最低權限
+                eWightingDistance = eWightingL;
+            }
+            else
+            { // 權重計算
+                ePartDistance = (a_eDistance > eDistanceH)? 100 : 100 * a_eDistance / eDistanceH;
+                ePartTheta = (a_eTheta > eThetaH) ? 100 : 100 * a_eTheta / eThetaH;
+                eWightingDistance = ePartDistance / (ePartDistance+ ePartTheta);
             }
 
             return eWightingDistance;
@@ -1083,6 +1088,7 @@ namespace PLC_Control
                     eThetaError = AngleDifferenceCal(tPathVector, eCarAngle);
                     eThetaErrorNext = AngleDifferenceCal(tPathVector, eCarAngleNext);
                     eTargetAngle = 0;
+                    a_tMotorData.lTargetAngle = eTargetAngle;
                     eDistance = MotorAngle_StraightErrorCal(a_atPathInfo, a_tCurrentInfo.tPosition, a_tMotorData);
 
                     // 用運動模型預測下一次直行誤差
@@ -1165,8 +1171,8 @@ namespace PLC_Control
                 eDistanceNext += a_tMotorData.lNavigateOffset;
 
                 // decide eWightingDistance and eWightingDistanceNext
-                eWightingDistance = DecideDistanceWighting(Math.Abs(eDistance));
-                eWightingDistanceNext = DecideDistanceWighting(Math.Abs(eDistanceNext));
+                eWightingDistance = DecideDistanceWighting(Math.Abs(eDistance), Math.Abs(eThetaError));
+                eWightingDistanceNext = DecideDistanceWighting(Math.Abs(eDistanceNext), Math.Abs(eThetaErrorNext));
 
                 eError = eWightingDistance * eDistance + (1 - eWightingDistance) * a_tMotorData.tAngleCtrlParams.eAlpha * eThetaError;
                 eErrorNext = eWightingDistanceNext * eDistanceNext + (1 - eWightingDistanceNext) * a_tMotorData.tAngleCtrlParams.eAlpha * eThetaErrorNext;

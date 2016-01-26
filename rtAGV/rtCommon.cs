@@ -7,6 +7,13 @@ namespace rtAGV_Common
     {
         public double eX;
         public double eY;
+
+        public void Set(double a_eX, double a_eY)
+        {
+            eX = a_eX;
+            eY = a_eY;
+        }
+
     }
 
     public struct rtPath_Info

@@ -173,7 +173,13 @@ namespace rtAGV_Sys
 
         public static void rtAGV_MotorCtrl(ref rtAGV_Data a_tAGV_Data, ref byte a_ucAGV_Status)
         {
-           
+
+            double eErrorPower = 0;
+            double eErrorAngle = 0;
+
+            eErrorPower = rtMotorCtrl.MotorPower_Ctrl(a_tAGV_Data.atPathInfo, a_tAGV_Data.tCarInfo, ref a_tAGV_Data.tMotor);
+
+            eErrorAngle = rtMotorCtrl.MotorAngle_CtrlNavigate(a_tAGV_Data.atPathInfo, a_tAGV_Data.tCarInfo, ref a_tAGV_Data.tMotor);
         }
 
         public static void Reset(rtAGV_Control tAGV)
