@@ -35,6 +35,12 @@ namespace PLC_Control
 
         /** \brief Coefficient for angle difference */
         public double eAlpha;
+
+        /** \brief Coefficient for Theta Offset */
+        public double eThetaOffsetCoe;
+
+        /** \brief Coefficient for Car Angle to motor angle */
+        public double eCarAngleCoe;
     }
 
     
@@ -67,7 +73,7 @@ namespace PLC_Control
         }
 
         public static rtVector Rotate(rtVector a_tPoint, rtVector a_tCenter, double a_eTheta)
-        { // 角度單位是徑度 甭轉換
+        {   // 角度單位是徑度 甭轉換
             rtVector tResult = new rtVector();
             rtVector tTmp, tTmp1;
 
@@ -202,8 +208,11 @@ namespace PLC_Control
         /** \brief Define: min power of motor */
         public const int MIN_POWER = 18;
 
-        /** \brief Define: max amgle value of motor */
+        /** \brief Define: max angle value of motor */
         public const int MAX_ANGLE_OFFSET_MOTOR = 70;
+
+        /** \brief Define: max angle value of path */
+        public const int MAX_ANGLE_OFFSET_PATH = 70;
 
         /** \brief Configure: PID Power Coeffient */
         public rtPID_Coefficient tPID_PowerCoe;
@@ -303,6 +312,9 @@ namespace PLC_Control
             tAngleCtrlParams.eKp = 0;
             tAngleCtrlParams.eKi = 0;
             tAngleCtrlParams.eKd = 0;
+
+            tAngleCtrlParams.eThetaOffsetCoe = 0.035;
+            tAngleCtrlParams.eCarAngleCoe = 0.75;
 
             lRotationDistance = DISTANCE_ERROR_SMOOTH;
 
@@ -978,13 +990,13 @@ namespace PLC_Control
             return eDeltaAngle;
         }
 
-        public static double AngleDifferenceCal(rtVector a_tPathVector, double a_eCarAngle)
+        public static double AngleDifferenceCal(rtVector a_tTargetVector, double a_eCarAngle)
         {
             double eAngleDiff = 0;
-            double ePathAngle = 0;
+            double eTargetAngle = 0;
 
-            ePathAngle = rtVectorOP.Vector2Angle(a_tPathVector);
-            eAngleDiff = DeltaAngleCal(a_eCarAngle, ePathAngle);
+            eTargetAngle = rtVectorOP.Vector2Angle(a_tTargetVector);
+            eAngleDiff = DeltaAngleCal(a_eCarAngle, eTargetAngle);
 
             return eAngleDiff;
         }
@@ -1024,9 +1036,7 @@ namespace PLC_Control
             double eDistanceLimitH = 500;
             double eDistanceLimitL = 30;
             double eDistanceH = 1000;
-            double eDistanceL = 0;
             double eThetaH = 20;
-            double eThetaL = 0;
             double ePartDistance = 0, ePartTheta = 0;
             double eWightingH = 1;
             double eWightingL = 0.15;
@@ -1237,6 +1247,135 @@ namespace PLC_Control
                 bMatched = false;
             }
             return bMatched;
+        }
+
+        public static double PathAngleOffsetCal(double a_eDistance, rtAngle_CtrlParams a_tAngleParams)
+        {
+            double eDistanceLimtH = 2000;   // 之後弄成define
+
+            double eThetaOffset = 0;
+
+            if (a_eDistance > eDistanceLimtH)
+            {   // 超過距離限制 最多跟路徑差70度
+                eThetaOffset = (a_eDistance > 0) ? MAX_ANGLE_OFFSET_PATH : -MAX_ANGLE_OFFSET_PATH;
+            }
+            else
+            {   // 按系數計算
+                eThetaOffset = a_eDistance * a_tAngleParams.eThetaOffsetCoe;
+            }
+            return eThetaOffset;
+        }
+
+        public static double MotorAngleCal(double a_eDeltaCarAngle, double a_eCarSpeed, rtAngle_CtrlParams a_tAngleParams)
+        {   // 目前不考慮 車速的因素
+            double eDeltaCarAngleLimtH = 90;   // 之後弄成define
+
+            double MotorAngle = 0;
+
+            if (a_eDeltaCarAngle > eDeltaCarAngleLimtH)
+            {   // 超過角度限制 最多轉70度
+                MotorAngle = (a_eDeltaCarAngle > 0) ? MAX_ANGLE_OFFSET_MOTOR : -MAX_ANGLE_OFFSET_MOTOR;
+            }
+            else
+            {   // 按系數計算
+                MotorAngle = a_eDeltaCarAngle * a_tAngleParams.eCarAngleCoe;
+            }
+            return MotorAngle;
+        }
+
+        public static double MotorAngle_CtrlNavigate_New(
+            rtPath_Info[] a_atPathInfo, rtCarData a_tCurrentInfo, ref rtMotorCtrl a_tMotorData)
+        {
+            double eError = 0;
+            double eDistance = 0;
+            double eCarAngle = 0, eMotorAngleOffset = 0, eTargetCarAngle = 0, eDeltaCarAngle = 0;
+            double eMototAngleTmp = 0;
+            byte ucSinpleModeFlag = 0; // 0: OFF 1: ON
+            int lPathIndex = 0;
+            rtVector tPathVector = new rtVector();
+            rtVector tTargetCarVector = new rtVector();
+
+
+            lPathIndex = a_tMotorData.lPathNodeIndex;
+
+            eCarAngle = a_tCurrentInfo.eAngle;
+
+            tPathVector.eX = a_atPathInfo[lPathIndex].tDest.eX - a_atPathInfo[lPathIndex].tSrc.eX;
+            tPathVector.eY = a_atPathInfo[lPathIndex].tDest.eY - a_atPathInfo[lPathIndex].tSrc.eY;
+
+            switch (a_atPathInfo[lPathIndex].ucStatus)
+            {
+                // 直走狀態
+                case (byte)rtStatus.STRAIGHT:
+                    eMotorAngleOffset = 0;
+                    eDistance = MotorAngle_StraightErrorCal(a_atPathInfo, a_tCurrentInfo.tPosition, a_tMotorData);
+
+                    break;
+                // 轉彎狀態
+                case (byte)rtStatus.TURN:
+                    a_tMotorData.lTurnDirection = TurnDirectionCal(a_atPathInfo, a_tMotorData.lPathNodeIndex);
+                    if (a_atPathInfo[lPathIndex].ucTurnType == (byte)rtTurnType.SIMPLE)
+                    {
+                        ucSinpleModeFlag = 1;
+                        eMotorAngleOffset = 0;
+                        eDistance = 0;
+                    }
+                    else
+                    {
+                        //  算出要往左轉還是右轉
+                        eDistance = MotorAngle_TurnErrorCal(a_atPathInfo, a_tCurrentInfo.tPosition, a_tMotorData);
+
+                        // 用算出的旋轉半徑得知車輪至少要轉幾度
+                        eMotorAngleOffset = TargetAngle_Cal(a_tCurrentInfo, a_tMotorData);
+                        eMotorAngleOffset = eMotorAngleOffset * a_tMotorData.lTurnDirection;
+                    }
+
+                    break;
+                default:    // 不應該出現這種case
+                    // show error
+                    break;
+            }
+
+            a_tMotorData.lTargetAngle = eMotorAngleOffset;
+
+            if (ucSinpleModeFlag == 1)
+            { // 直接打正90度或負90度
+                a_tMotorData.lMotorAngle = ANGLE_ROTATION * a_tMotorData.lTurnDirection;
+            }
+            else
+            {
+                // 考慮靠左 or 靠右的 offset
+                eDistance += a_tMotorData.lNavigateOffset;
+
+                // 算出要跟路徑的夾角
+                eTargetCarAngle = PathAngleOffsetCal(eDistance, a_tMotorData.tAngleCtrlParams);
+
+                // 算出目標車身角度
+                rtVector tZeroVector = new rtVector(0,0);
+                tTargetCarVector = rtVectorOP.Rotate(tPathVector, tZeroVector, eTargetCarAngle*180/Math.PI);
+
+                // 算出目標車身角度與當下車身角度的差距
+                eDeltaCarAngle = AngleDifferenceCal(tTargetCarVector, eCarAngle);
+
+
+                eMototAngleTmp = 0;
+
+                eMototAngleTmp = eMototAngleTmp + eMotorAngleOffset;
+
+                a_tMotorData.lMotorAngle = (int)(Math.Round(eMototAngleTmp));
+
+                // boundary
+                if (a_tMotorData.lMotorAngle > MAX_ANGLE_OFFSET_MOTOR)
+                {
+                    a_tMotorData.lMotorAngle = MAX_ANGLE_OFFSET_MOTOR;
+                }
+                if (a_tMotorData.lMotorAngle < -MAX_ANGLE_OFFSET_MOTOR)
+                {
+                    a_tMotorData.lMotorAngle = -MAX_ANGLE_OFFSET_MOTOR;
+                }
+            }
+
+            return eError;
         }
     }
 }
