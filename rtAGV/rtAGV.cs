@@ -329,6 +329,8 @@ namespace rtAGV_Sys
                 // step 4: 降回最低點
             }
         }
+
+#if CHUNK
         //2016/01/25 Lee Add
         public bool LOADbMatched = false;//是否完成接近貨物
         public int LOADCount = 0;//取貨進度計數
@@ -453,7 +455,7 @@ namespace rtAGV_Sys
                 a_tAGV_Class.UnLOADCount += 50;
             }
         }
-
+#endif
         public static void EmergencyStop()
         {
 

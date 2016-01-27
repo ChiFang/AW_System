@@ -6,6 +6,8 @@ using System.Windows.Forms;
 //for Thread
 using System.Threading;
 
+#if CHUNK
+
 namespace PLC_Control
 {
     public enum TriggerType
@@ -61,7 +63,7 @@ namespace PLC_Control
 
     public class ObjectPLC_KV
     {
-        #region Constant
+#region Constant
         public class STATUS
         {
             public const int INI = 0x01;
@@ -71,9 +73,9 @@ namespace PLC_Control
         }
 
         public static bool _ShowMsg = false;
-        #endregion
+#endregion
 
-        #region Field
+#region Field
         //連線與讀寫
         public AxDATABUILDERAXLibLB.AxDBCommManager axDBCommManager = null;
         //觸發與中斷
@@ -90,10 +92,10 @@ namespace PLC_Control
         public delegate void CallbackError(Object sender, int status);
         public event CallbackError _errorback;
 
-        #endregion
+#endregion
 
         //觸發相關設定
-        #region PLC_KV Timer Trigger
+#region PLC_KV Timer Trigger
         public enum TriggerSource
         {
             ACTIVE,
@@ -140,9 +142,9 @@ namespace PLC_Control
                 tmpStatus = _Status & (STATUS.TRIGGER);
             } while (tmpStatus > 0);
         }
-        #endregion
+#endregion
 
-        #region PLC_KV Hander
+#region PLC_KV Hander
 
         public bool checkConnect(bool check, bool show)
         {
@@ -436,6 +438,8 @@ namespace PLC_Control
             }
         }
 
-        #endregion
+#endregion
     }
 }
+
+#endif

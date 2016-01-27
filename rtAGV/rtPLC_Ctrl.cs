@@ -176,7 +176,7 @@ namespace PLC_Control
         public enum rtTurnType { SIMPLE = 0, SMOOTH = 1, ARRIVE = 2 };
 
         /** \brief Define: 角度對齊的閥值 */
-        public const double ANGLE_MATCH_TH = 0.5;
+        public const double ANGLE_MATCH_TH = 1.0;
 
         /** \brief Define: 系統頻率 8Hz = 0.125s 1次 */
         public const double FREQUENCY = 8;
@@ -513,7 +513,7 @@ namespace PLC_Control
                             }
                             else
                             {
-                                if (Math.Abs(Math.Abs(a_tMotorData.eMotorAngleIn) - ANGLE_ROTATION) < ANGLE_MATCH_TH)
+                                if (Math.Abs(Math.Abs(a_tMotorData.eMotorAngleIn) - ANGLE_ROTATION) > ANGLE_MATCH_TH)
                                 {   // 還沒轉到原地旋轉的角度時先不行走
                                     a_tMotorData.lMotorPower = 0;
                                 }
@@ -1298,7 +1298,6 @@ namespace PLC_Control
         public static double MotorAngle_CtrlNavigate_New(
             rtPath_Info[] a_atPathInfo, rtCarData a_tCurrentInfo, ref rtMotorCtrl a_tMotorData)
         {
-            double eError = 0;
             double eDistance = 0;
             double eCarAngle = 0, eMotorAngleOffset = 0, eTargetCarAngle = 0, eDeltaCarAngle = 0;
             double eMototAngleTmp = 0;
