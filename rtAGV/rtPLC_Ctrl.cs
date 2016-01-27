@@ -274,6 +274,12 @@ namespace PLC_Control
         /** \brief Output Data: 預測實際圓心*/
         public rtVector PredRotationCenter;
 
+        public double Debug_eWightingDistance;
+
+        public double Debug_eDistance;
+
+        public double Debug_eThetaError;
+
 #if rtAGV_DEBUG_PREDICT
         /** \brief Output Data: 預測下次的位置資訊*/
         public rtVector tNextPositionTest;
@@ -1183,6 +1189,12 @@ namespace PLC_Control
                 // decide eWightingDistance and eWightingDistanceNext
                 eWightingDistance = DecideDistanceWighting(Math.Abs(eDistance), Math.Abs(eThetaError));
                 eWightingDistanceNext = DecideDistanceWighting(Math.Abs(eDistanceNext), Math.Abs(eThetaErrorNext));
+                
+                a_tMotorData.Debug_eWightingDistance = eWightingDistance;
+
+                a_tMotorData.Debug_eDistance = eDistance;
+
+                a_tMotorData.Debug_eThetaError = eThetaError;
 
                 eError = eWightingDistance * eDistance + (1 - eWightingDistance) * a_tMotorData.tAngleCtrlParams.eAlpha * eThetaError;
                 eErrorNext = eWightingDistanceNext * eDistanceNext + (1 - eWightingDistanceNext) * a_tMotorData.tAngleCtrlParams.eAlpha * eThetaErrorNext;
