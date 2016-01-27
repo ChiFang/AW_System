@@ -1352,7 +1352,7 @@ namespace PLC_Control
 
                 // 算出目標車身角度
                 rtVector tZeroVector = new rtVector(0,0);
-                tTargetCarVector = rtVectorOP.Rotate(tPathVector, tZeroVector, eTargetCarAngle*180/Math.PI);
+                tTargetCarVector = rtVectorOP.Rotate(tPathVector, tZeroVector, eTargetCarAngle* Math.PI / 180);
 
                 // 算出目標車身角度與當下車身角度的差距
                 eDeltaCarAngle = AngleDifferenceCal(tTargetCarVector, eCarAngle);
