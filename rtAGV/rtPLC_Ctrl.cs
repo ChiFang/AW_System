@@ -1306,6 +1306,7 @@ namespace PLC_Control
             int lPathIndex = 0;
             rtVector tPathVector = new rtVector();
             rtVector tTargetCarVector = new rtVector();
+            rtVector tVector = new rtVector();
 
 
             lPathIndex = a_tMotorData.lPathNodeIndex;
@@ -1336,6 +1337,16 @@ namespace PLC_Control
                     {
                         //  算出要往左轉還是右轉
                         eDistance = MotorAngle_TurnErrorCal(a_atPathInfo, a_tCurrentInfo.tPosition, a_tMotorData);
+
+                        //
+
+                        tVector.eX = (a_tMotorData.tRotateCenter.eX - a_tCurrentInfo.tPosition.eX) * a_tMotorData.lTurnDirection;
+                        tVector.eY = (a_tMotorData.tRotateCenter.eY - a_tCurrentInfo.tPosition.eY) * a_tMotorData.lTurnDirection;
+
+                        // 取右側的法向量 為路徑切線向量
+                        tPathVector.eX = tVector.eY;
+                        tPathVector.eY = -tVector.eX;
+                        //
 
                         // 用算出的旋轉半徑得知車輪至少要轉幾度
                         eMotorAngleOffset = TargetAngle_Cal(a_tCurrentInfo, a_tMotorData);
