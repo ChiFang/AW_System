@@ -59,6 +59,9 @@ namespace rtAGV_Common
 
         /** \brief car right Tire speed */
         public double eCarTireSpeedRight;
+
+        /** \brief Motor angle (direction) */
+        public double eMotorAngle;
     }
 
     public struct ROI
