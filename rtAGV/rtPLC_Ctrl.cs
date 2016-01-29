@@ -126,7 +126,7 @@ namespace PLC_Control
                 else
                 {
                     // show error msg
-                    eAngle = 999;
+                    eAngle = 0;
                 }
             }
             else
@@ -327,7 +327,7 @@ namespace PLC_Control
             tAngleCtrlParams.eKi = 0;
             tAngleCtrlParams.eKd = 0;
 
-            tAngleCtrlParams.eThetaOffsetCoe = 0.035;
+            tAngleCtrlParams.eThetaOffsetCoe = 0.34;
             tAngleCtrlParams.eCarAngleCoe = 0.75;
 
             lRotationDistance = DISTANCE_ERROR_SMOOTH;
@@ -1370,17 +1370,36 @@ namespace PLC_Control
 
         public static double TargetAngleOffsetModify(double a_eDistanceEroor, double a_eCenterSpeed, double a_eTargetAngleOffset)
         {
-            double eModifiedAngleOffset = 0;
+            double eAbsDistanceEroor = 0;
             double eLength = 0;
             double eLengthModify = 0;
+            double eAbsTargetAngleOffset = 0;
+            double eModifiedAngleOffset = 0;
 
-            eLength = a_eDistanceEroor / Math.Sin(Math.Abs(a_eTargetAngleOffset)*Math.PI/180);
+            eAbsDistanceEroor = Math.Abs(a_eDistanceEroor);
+            eAbsTargetAngleOffset = Math.Abs(a_eTargetAngleOffset);
 
-            eLengthModify = a_eCenterSpeed / BASE_SPEED * eLength;
+            if (eAbsTargetAngleOffset < ANGLE_MATCH_TH)
+            {
+                eLength = eAbsDistanceEroor / (Math.Cos(eAbsTargetAngleOffset * Math.PI / 180));
+            }
+            else
+            {
+                eLength = eAbsDistanceEroor / (Math.Sin(eAbsTargetAngleOffset * Math.PI / 180));
+            }
+            eLengthModify = Math.Abs(a_eCenterSpeed) / BASE_SPEED * eLength;
 
-            eModifiedAngleOffset = (eLengthModify != 0) ? Math.Asin(a_eDistanceEroor/ eLengthModify) : 0;
+            eModifiedAngleOffset = (eLengthModify != 0) ? Math.Asin(eAbsDistanceEroor / eLengthModify) : 0;
 
-            eModifiedAngleOffset = eModifiedAngleOffset * 180 / Math.PI;
+            if (eLengthModify == 0)
+            {   // 速度 = 0 就不更改
+                eModifiedAngleOffset = a_eTargetAngleOffset;
+            }
+            else
+            {
+                eModifiedAngleOffset = eModifiedAngleOffset * 180 / Math.PI;
+                eModifiedAngleOffset = (a_eTargetAngleOffset < 0) ? -eModifiedAngleOffset : eModifiedAngleOffset;
+            }
 
             return eModifiedAngleOffset;
         }
@@ -1388,7 +1407,7 @@ namespace PLC_Control
         public static double MotorAngle_CtrlNavigate_New(
             rtPath_Info[] a_atPathInfo, rtCarData a_tCurrentInfo, ref rtMotorCtrl a_tMotorData)
         {
-            double eDistance = 0;
+            double eDistance = 0, eThetaError;
 
             double eCarCenterSpeed = 0;
             double eCarAngle = 0, eMotorAngleOffset = 0, eTargetCarAngleOffset = 0, eDeltaCarAngle = 0;
@@ -1413,7 +1432,6 @@ namespace PLC_Control
                 case (byte)rtStatus.STRAIGHT:
                     eMotorAngleOffset = 0;
                     eDistance = MotorAngle_StraightErrorCal(a_atPathInfo, a_tCurrentInfo.tPosition, a_tMotorData);
-
                     break;
                 // 轉彎狀態
                 case (byte)rtStatus.TURN:
@@ -1447,7 +1465,13 @@ namespace PLC_Control
                     break;
             }
 
+            a_tMotorData.Debug_eDistance = eDistance;   // for test
+
             a_tMotorData.lTargetAngle = eMotorAngleOffset;
+
+            // 算出車身角度根路徑角度偏差多少 (這裡目前僅為了 LOG)
+            eThetaError = AngleDifferenceCal(tPathVector, eCarAngle);
+            a_tMotorData.Debug_eThetaError = eThetaError;
 
             if (ucSinpleModeFlag == 1)
             { // 直接打正90度或負90度
