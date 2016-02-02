@@ -101,6 +101,8 @@ namespace rtAGV_Common
 
         /** \brief Warehousing Direction: Radius*/
         public double eDirection;
+
+        public double DistanceDepth;
     }
 
     public struct rtAGV_MAP_node

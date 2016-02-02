@@ -7,10 +7,11 @@
 using System;
 
 using rtAGV_Common;
+using rtAGV_Sys;
+using PLC_Firmware;
 
 namespace PLC_Control
 {
-    
 
     public struct rtPID_Coefficient
     {
@@ -159,13 +160,13 @@ namespace PLC_Control
     }
 
 
-    public class rtForkCtrl
+   /* public class rtForkCtrl
     {
         public rtForkCtrl()
         {
 
         }
-    }
+    }*/
 
     public class rtMotorCtrl
     {
@@ -287,6 +288,8 @@ namespace PLC_Control
         public double Debug_eDistance;
 
         public double Debug_eThetaError;
+
+        public double Debug_elNavigateOffset;
 
 #if rtAGV_DEBUG_PREDICT
         /** \brief Output Data: 預測下次的位置資訊*/
@@ -1485,8 +1488,12 @@ namespace PLC_Control
                 // 算出要跟路徑的夾角
                 eTargetCarAngleOffset = PathAngleOffsetCal(eDistance, a_tMotorData.tAngleCtrlParams);
 
+                a_tMotorData.Debug_eWightingDistance = eTargetCarAngleOffset; //for Log
+
                 // 算出兩輪中心的速度
                 eCarCenterSpeed = CarCenterSpeedCal(a_tCurrentInfo, a_tMotorData.eMotorAngleIn);
+                a_tMotorData.Debug_elNavigateOffset = eCarCenterSpeed;
+
 #if rtAGV_DEBUG_OFFSET_MODIFY
                 // 根據車速調整跟路徑的夾角
                 eTargetCarAngleOffset = TargetAngleOffsetModify(eDistance, eCarCenterSpeed, eTargetCarAngleOffset);
@@ -1518,6 +1525,51 @@ namespace PLC_Control
             }
 
             return eDistance;
+        } 
+    }
+
+    public class rtForkCtrl
+    {
+        /** \brief 是否完成接近貨物 */
+        public bool LOADbMatched = false;
+
+        /** \brief 是否完成接近貨物 */
+        public bool UnLOADbMatched = false;
+
+        /** \brief 是否完成取貨 */
+        public bool LoadFinisged = false;
+
+        /** \brief 是否完成放貨 */
+        public bool UnLOADFinished = false;
+
+        /** \brief 堆高機貨叉狀態宣告 */
+        public enum ForkLODAStatus { SetHeight, Forth, Backward, Pickup, Finished };
+
+        /** \brief 堆高機貨叉狀態宣告 */
+        public enum ForkUnLODAStatus { SetHeight, Forth, Backward, PutDown, Finished };
+
+        public static bool LOAD_FotTest(rtWarehousingInfo a_tLocatData, rtMotorCtrl a_tMotorData, rtForkCtrl a_tForkCtr, ref rtAGV_Data a_tAGV_Data)
+        {
+            if (!a_tForkCtr.LOADbMatched)
+                a_tForkCtr.LOADbMatched = rtMotorCtrl.CarAngleAlignment(a_tLocatData.eDirection, a_tAGV_Data.tCarInfo, a_tMotorData);
+            else
+            {
+                if (!a_tForkCtr.LoadFinisged) a_tForkCtr.LoadFinisged = PLC_FW.LoadFWFunc(a_tLocatData.eHeight, a_tLocatData.DistanceDepth);
+                if (a_tForkCtr.LoadFinisged) return true;
+            }
+            return false;
+        }
+
+        public static bool UNLOAD_ForTest(rtWarehousingInfo a_tLocatData, rtMotorCtrl a_tMotorData, rtForkCtrl a_tForkCtr, ref rtAGV_Data a_tAGV_Data)
+        {
+            if (!a_tForkCtr.UnLOADbMatched)
+                a_tForkCtr.UnLOADbMatched = rtMotorCtrl.CarAngleAlignment(a_tLocatData.eDirection, a_tAGV_Data.tCarInfo, a_tMotorData);
+            else
+            {
+                if (a_tForkCtr.UnLOADFinished) a_tForkCtr.UnLOADFinished = PLC_FW.UnLoadFWFunc(a_tLocatData.eHeight, a_tLocatData.DistanceDepth);
+                if (a_tForkCtr.UnLOADFinished) return true;
+            }
+            return false;
         }
     }
 }
