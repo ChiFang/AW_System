@@ -62,7 +62,7 @@ namespace PLC_Control
         public int lNavigateOffset;
 
         /** \brief Output Data: Finish Flag */
-        public byte ucFinishFlag;
+        public bool bFinishFlag;
 
         /** \brief Output Data: Rotation Radius of turn in smooth mode */
         public int lRotationRadius;
@@ -99,7 +99,7 @@ namespace PLC_Control
         {
             lPathNodeIndex = 0;
             lNavigateOffset = 0;
-            ucFinishFlag = 0;
+            bFinishFlag = false;
             lRotationRadius = 0;
             tRotateCenter.Init();
             lTurnDirection = 0;
@@ -347,7 +347,7 @@ namespace PLC_Control
 
             // init output data
             tMotorData.Init();
-            tMotorData.ucFinishFlag = (byte)rtNavigateStatus.UNDO;
+            tMotorData.bFinishFlag = false;
         }
 
         /**
@@ -467,7 +467,7 @@ namespace PLC_Control
                             a_CMotorInfo.tMotorData.lMotorAngle = 0;
                             a_CMotorInfo.tMotorData.lMotorTorsion = 0;
                             a_atPathInfo[a_CMotorInfo.tMotorData.lPathNodeIndex].ucStatus = (byte)rtStatus.DONE;
-                            a_CMotorInfo.tMotorData.ucFinishFlag = (byte)rtNavigateStatus.DONE;
+                            a_CMotorInfo.tMotorData.bFinishFlag = true;
                         }
                         else
                         { // 趕快進入下一段 (要不要先轉正再說)
@@ -506,7 +506,7 @@ namespace PLC_Control
                                     a_CMotorInfo.tMotorData.lMotorAngle = 0;
                                     a_CMotorInfo.tMotorData.lMotorTorsion = 0;
                                     a_atPathInfo[a_CMotorInfo.tMotorData.lPathNodeIndex].ucStatus = (byte)rtStatus.DONE;
-                                    a_CMotorInfo.tMotorData.ucFinishFlag = (byte)rtNavigateStatus.DONE;
+                                    a_CMotorInfo.tMotorData.bFinishFlag = true;
                                 }
                                 break;
                             default:
@@ -1282,10 +1282,22 @@ namespace PLC_Control
         }
     }
 
+    public struct rtForkCtrl_Data
+    {
+        public byte ucStatus;
+
+        public void Init()
+        {
+            ucStatus = (byte)rtForkCtrl.ForkStatus.NULL;
+        }
+
+    }
 
     public class rtForkCtrl
     {
-#if FW_CTRL
+        /** \brief Fork Control Data */
+        public rtForkCtrl_Data tForkData;
+
         /** \brief 是否完成接近貨物 */
         public bool LOADbMatched = false;
 
@@ -1304,6 +1316,15 @@ namespace PLC_Control
         /** \brief 堆高機貨叉狀態宣告 */
         public enum ForkUnLODAStatus { SetHeight, Forth, Backward, PutDown, Finished };
 
+        /** \brief 堆高機貨叉狀態宣告 */
+        public enum ForkStatus { NULL, ALIMENT, SET_HEIGHT, FORTH, BACKWARD, PICKUP, PICKDOWN, RESET_HEIGHT, FINISH , ERROR};
+
+        public rtForkCtrl()
+        {
+            tForkData.Init();
+        }
+
+#if FW_CTRL
         public static bool LOAD_FotTest(rtWarehousingInfo a_tLocatData, rtMotorCtrl a_tMotorData, rtForkCtrl a_tForkCtr, ref rtAGV_Data a_tAGV_Data)
         {
             if (!a_tForkCtr.LOADbMatched)
@@ -1328,5 +1349,5 @@ namespace PLC_Control
             return false;
         }
 #endif
-    }
+        }
 }
