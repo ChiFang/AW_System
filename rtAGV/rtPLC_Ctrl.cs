@@ -1141,8 +1141,9 @@ namespace PLC_Control
             eAbsTargetAngleOffset = Math.Abs(a_eTargetAngleOffset);
 
             if (eAbsTargetAngleOffset < ANGLE_MATCH_TH)
-            {
-                eLength = eAbsDistanceEroor / (Math.Cos(eAbsTargetAngleOffset * Math.PI / 180));
+            {   // 角度太小就不修正 避免三角函數算錯
+                eModifiedAngleOffset = a_eTargetAngleOffset;
+                return eModifiedAngleOffset;
             }
             else
             {
