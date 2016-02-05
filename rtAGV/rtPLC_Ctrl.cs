@@ -1,6 +1,8 @@
 ﻿
 #define rtAGV_DEBUG_PREDICT
 
+// #define rtAGV_DEBUG_PRINT
+
 #define rtAGV_DEBUG_OFFSET_MODIFY
 // #define FW_CTRL
 
@@ -94,6 +96,14 @@ namespace PLC_Control
         public double Debug_eDistance;
 
         public double Debug_eThetaError;
+
+        public double Debug_TargetAngleOffset1;
+
+        public double Debug_TargetAngleOffset2;
+
+        public double Debug_CenterSpeed;
+
+        public double Debug_eDeltaCarAngle;
 
         public void Init()
         {
@@ -1149,8 +1159,13 @@ namespace PLC_Control
             {
                 eLength = eAbsDistanceEroor / (Math.Sin(eAbsTargetAngleOffset * Math.PI / 180));
             }
+            
             eLengthModify = Math.Abs(a_eCenterSpeed) / BASE_SPEED * eLength;
 
+#if rtAGV_DEBUG_PRINT
+            Console.WriteLine("eLength:" + eLength.ToString());
+            Console.WriteLine("eLengthModify:" + eLengthModify.ToString());
+#endif
             eModifiedAngleOffset = (eLengthModify != 0) ? Math.Asin(eAbsDistanceEroor / eLengthModify) : 0;
 
             if (eLengthModify == 0)
@@ -1246,12 +1261,24 @@ namespace PLC_Control
 
                 // 算出要跟路徑的夾角
                 eTargetCarAngleOffset = PathAngleOffsetCal(eDistance, a_CMotorInfo.tMotorCfg.tPID_ThetaOffsetCoe);
-
+                a_CMotorInfo.tMotorData.Debug_TargetAngleOffset1 = eTargetCarAngleOffset;
+#if rtAGV_DEBUG_PRINT
+                Console.WriteLine("eTargetCarAngleOffset1:" + eTargetCarAngleOffset.ToString());
+#endif
                 // 算出兩輪中心的速度
                 eCarCenterSpeed = CarCenterSpeedCal(a_tCarData, a_tCarData.eWheelAngle);
+                a_CMotorInfo.tMotorData.Debug_CenterSpeed = eCarCenterSpeed;
+#if rtAGV_DEBUG_PRINT
+                Console.WriteLine("eCarCenterSpeed:" + eCarCenterSpeed.ToString());
+#endif
+
 #if rtAGV_DEBUG_OFFSET_MODIFY
                 // 根據車速調整跟路徑的夾角
                 eTargetCarAngleOffset = TargetAngleOffsetModify(eDistance, eCarCenterSpeed, eTargetCarAngleOffset);
+#endif
+                a_CMotorInfo.tMotorData.Debug_TargetAngleOffset2 = eTargetCarAngleOffset;
+#if rtAGV_DEBUG_PRINT
+                Console.WriteLine("eTargetCarAngleOffset2:" + eTargetCarAngleOffset.ToString());
 #endif
                 // 算出目標車身角度
                 rtVector tZeroVector = new rtVector(0,0);
@@ -1259,7 +1286,7 @@ namespace PLC_Control
 
                 // 算出目標車身角度與當下車身角度的差距
                 eDeltaCarAngle = AngleDifferenceCal(tTargetCarVector, eCarAngle);
-
+                a_CMotorInfo.tMotorData.Debug_eDeltaCarAngle = eDeltaCarAngle;
                 // 用角度差距算出 適當的車輪馬達轉角
                 eMototAngleTmp = MotorAngleCal(eDeltaCarAngle, 0, a_CMotorInfo.tMotorCfg.tPID_MotorAngleCoe);
 
@@ -1287,6 +1314,10 @@ namespace PLC_Control
     {
         public byte ucStatus;
 
+        public int height;
+
+        public int distanceDepth
+            ;
         public void Init()
         {
             ucStatus = (byte)rtForkCtrl.ForkStatus.NULL;
@@ -1298,18 +1329,6 @@ namespace PLC_Control
     {
         /** \brief Fork Control Data */
         public rtForkCtrl_Data tForkData;
-
-        /** \brief 是否完成接近貨物 */
-        public bool LOADbMatched = false;
-
-        /** \brief 是否完成接近貨物 */
-        public bool UnLOADbMatched = false;
-
-        /** \brief 是否完成取貨 */
-        public bool LoadFinisged = false;
-
-        /** \brief 是否完成放貨 */
-        public bool UnLOADFinished = false;
 
         /** \brief 堆高機貨叉狀態宣告 */
         public enum ForkLODAStatus { SetHeight, Forth, Backward, Pickup, Finished };
@@ -1325,30 +1344,17 @@ namespace PLC_Control
             tForkData.Init();
         }
 
-#if FW_CTRL
-        public static bool LOAD_FotTest(rtWarehousingInfo a_tLocatData, rtMotorCtrl a_tMotorData, rtForkCtrl a_tForkCtr, ref rtAGV_Data a_tAGV_Data)
+        public static void LOADTest(ref rtForkCtrl_Data tForkData)
         {
-            if (!a_tForkCtr.LOADbMatched)
-                a_tForkCtr.LOADbMatched = rtMotorCtrl.CarAngleAlignment(a_tLocatData.eDirection, a_tAGV_Data.tCarInfo, a_tMotorData);
-            else
-            {
-                if (!a_tForkCtr.LoadFinisged) a_tForkCtr.LoadFinisged = PLC_FW.LoadFWFunc(a_tLocatData.eHeight, a_tLocatData.DistanceDepth);
-                if (a_tForkCtr.LoadFinisged) return true;
-            }
-            return false;
+            tForkData.height = 125;
+            tForkData.distanceDepth = 4500;
         }
 
-        public static bool UNLOAD_ForTest(rtWarehousingInfo a_tLocatData, rtMotorCtrl a_tMotorData, rtForkCtrl a_tForkCtr, ref rtAGV_Data a_tAGV_Data)
+        public static void UNLOADTest(ref rtForkCtrl_Data tForkData)
         {
-            if (!a_tForkCtr.UnLOADbMatched)
-                a_tForkCtr.UnLOADbMatched = rtMotorCtrl.CarAngleAlignment(a_tLocatData.eDirection, a_tAGV_Data.tCarInfo, a_tMotorData);
-            else
-            {
-                if (a_tForkCtr.UnLOADFinished) a_tForkCtr.UnLOADFinished = PLC_FW.UnLoadFWFunc(a_tLocatData.eHeight, a_tLocatData.DistanceDepth);
-                if (a_tForkCtr.UnLOADFinished) return true;
-            }
-            return false;
+            tForkData.height = 125;
+            tForkData.distanceDepth = 4500;
         }
-#endif
-        }
+
+     }
 }
