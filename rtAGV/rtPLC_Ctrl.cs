@@ -6,6 +6,10 @@
 #define rtAGV_DEBUG_OFFSET_MODIFY
 // #define FW_CTRL
 
+#define rtAGV_POWER_SMOOTH
+
+#define rtAGV_BACK_MODE
+
 using System;
 
 using rtAGV_Common;
@@ -104,6 +108,10 @@ namespace PLC_Control
         public double Debug_CenterSpeed;
 
         public double Debug_eDeltaCarAngle;
+
+        public bool Debug_bOverDestFlag;
+
+        public bool Debug_bOverDestFlag2;
 
         public void Init()
         {
@@ -273,6 +281,9 @@ namespace PLC_Control
         /** \brief Define: 角度對齊的閥值 */
         public const double ANGLE_MATCH_TH = 1.0;
 
+        /** \brief Define: 角度對齊時決定馬達力道的角度閥值 */
+        public const double ALIGNMENT_SPEED_ANGLE_TH = 15.0;
+
         /** \brief Define: 系統頻率 8Hz = 0.125s 1次 */
         public const double FREQUENCY = 8;
 
@@ -280,7 +291,7 @@ namespace PLC_Control
         public const double ANGLE_TH = 90;
 
         /** \brief Define: 可以在原地打轉的角度 */
-        public const int ANGLE_ROTATION = 90;
+        public static int ANGLE_ROTATION = 85;
 
         /** \brief Define: 馬達(驅動輪胎)在這角度以內以直行計算 */
         public const int ANGLE_TH_MOTION_PREDICT = 5;
@@ -304,7 +315,7 @@ namespace PLC_Control
         public const int MAX_POWER = 255;
 
         /** \brief Define: min power of motor */
-        public const int MIN_POWER = 18;
+        public const int MIN_POWER = 30;
 
         /** \brief Define: max angle value of motor */
         public const int MAX_ANGLE_OFFSET_MOTOR = 70;
@@ -341,7 +352,7 @@ namespace PLC_Control
             {
                 a_CMotorInfo.ePredictErrorTest = 0;
             }
-            a_CMotorInfo.tNextPositionTest = Motion_Predict(a_tCarData, a_CMotorInfo);
+            a_CMotorInfo.tNextPositionTest = Coordinate_Predict(a_tCarData, a_CMotorInfo, (1 / FREQUENCY));
 
             a_CMotorInfo.lCntTest++;
         }
@@ -387,11 +398,61 @@ namespace PLC_Control
             double eErrorCurrent = 0;
             rtVector tV_C2D; // current point to destination
 
+#if rtAGV_POWER_SMOOTH
+            rtVector tV_C2D_Last; // current point to destination
+            int lPathLength = 0;
+            int lNodeIndex = 0;
+            double ePathTheta = 0;
+#endif
             tV_C2D.eX = a_atPathInfo[a_lPathNodeIndex].tDest.eX - a_tPosition.eX;
             tV_C2D.eY = a_atPathInfo[a_lPathNodeIndex].tDest.eY - a_tPosition.eY;
             eErrorCurrent = rtVectorOP.GetLength(tV_C2D);
 
+#if rtAGV_POWER_SMOOTH
+            lPathLength = a_atPathInfo.Length;
+            for (lNodeIndex = a_lPathNodeIndex+1; lNodeIndex < lPathLength; lPathLength++)
+            {
+                tV_C2D.eX = a_atPathInfo[lNodeIndex].tDest.eX - a_atPathInfo[lNodeIndex].tSrc.eX;
+                tV_C2D.eY = a_atPathInfo[lNodeIndex].tDest.eY - a_atPathInfo[lNodeIndex].tSrc.eY;
+
+                tV_C2D_Last.eX = a_atPathInfo[lNodeIndex - 1].tDest.eX - a_atPathInfo[lNodeIndex - 1].tSrc.eX;
+                tV_C2D_Last.eY = a_atPathInfo[lNodeIndex - 1].tDest.eY - a_atPathInfo[lNodeIndex - 1].tSrc.eY;
+                ePathTheta = rtVectorOP.GetTheta(tV_C2D_Last, tV_C2D);
+
+                if (ePathTheta< THETA_ERROR_TURN)
+                {
+                    eErrorCurrent += rtVectorOP.GetLength(tV_C2D);
+                }
+                else
+                {
+                    break;
+                }
+
+                if (lNodeIndex + 1 >= lPathLength)
+                {
+                    break;
+                }
+            }            
+#endif
             return eErrorCurrent;
+        }
+
+        public static bool CarVectorVerify(rtPath_Info[] a_atPathInfo, double a_eCarAngle, int a_lPathNodeIndex)
+        {
+            double eDeltaAngle = 0;
+            rtVector tV_S2D; // source point to destination
+
+            tV_S2D.eX = a_atPathInfo[a_lPathNodeIndex].tDest.eX - a_atPathInfo[a_lPathNodeIndex].tSrc.eX;
+            tV_S2D.eY = a_atPathInfo[a_lPathNodeIndex].tDest.eY - a_atPathInfo[a_lPathNodeIndex].tSrc.eY;
+
+            eDeltaAngle = AngleDifferenceCal(tV_S2D, a_eCarAngle);
+
+            // 判斷是否該倒退走比較合適
+            if (Math.Abs(eDeltaAngle) >= ANGLE_TH)
+            { // 必須反向行走
+                return true;
+            }
+            return false;
         }
 
         public static bool OverDestination(rtPath_Info[] a_atPathInfo, rtVector a_tPosition, int a_lPathNodeIndex)
@@ -443,6 +504,9 @@ namespace PLC_Control
             bool bOutFlag = false;
             bool bOverDestFlag = false;
 
+            a_CMotorInfo.tMotorData.bFinishFlag = false;
+            a_CMotorInfo.tMotorData.Debug_bOverDestFlag2 = false;
+            a_CMotorInfo.tMotorData.Debug_bOverDestFlag = false;
             switch (a_atPathInfo[a_CMotorInfo.tMotorData.lPathNodeIndex].ucStatus)
             {
                 // 直走狀態
@@ -464,13 +528,11 @@ namespace PLC_Control
                             }   
                         }
                     }
-
+                    
                     bOverDestFlag = OverDestination(a_atPathInfo, a_tCarData.tPosition, a_CMotorInfo.tMotorData.lPathNodeIndex);
-
+                    a_CMotorInfo.tMotorData.Debug_bOverDestFlag = bOverDestFlag;
                     if (bOverDestFlag == true)
-                    { // 超過終點 >>　TBD
-                        // a_CMotorInfo.lMotorPower = -a_CMotorInfo.lMotorPower;
-                        eErrorCurrent = -eErrorCurrent;
+                    { // 判斷超過終點 >>　TBD
                         if (a_atPathInfo[a_CMotorInfo.tMotorData.lPathNodeIndex].ucTurnType == (byte)rtTurnType.ARRIVE)
                         {   // 到達最終目的地
                             a_CMotorInfo.tMotorData.lMotorPower = 0;
@@ -523,6 +585,19 @@ namespace PLC_Control
                                 // show error msg
                                 break;
                         }
+
+                        if(a_CMotorInfo.tMotorData.bFinishFlag == false)
+                        {
+                            bOverDestFlag = CarVectorVerify(a_atPathInfo, a_tCarData.eAngle, a_CMotorInfo.tMotorData.lPathNodeIndex);
+                            a_CMotorInfo.tMotorData.Debug_bOverDestFlag2 = bOverDestFlag;
+                            if (bOverDestFlag == true)
+                            {   // 往後走
+                                a_CMotorInfo.tMotorData.lMotorPower = -a_CMotorInfo.tMotorData.lMotorPower;
+                                eErrorCurrent = -eErrorCurrent;
+                            }
+                        }
+                        
+
                     }
                     break;
                 // 轉彎狀態
@@ -929,7 +1004,17 @@ namespace PLC_Control
             return eSpeed;
         }
 
-        public static rtVector Motion_Predict(rtCarData a_tCarData, rtMotorCtrl a_CMotorInfo)
+        public static void Motion_Predict(rtCarData a_tCarData, rtMotorCtrl a_CMotorInfo, double a_eDeltaTime, out rtVector a_tCarCoordinate, out double a_eCarAngle)
+        {
+            a_eCarAngle = 0;
+            a_tCarCoordinate = new rtVector();
+
+            a_tCarCoordinate = Coordinate_Predict(a_tCarData, a_CMotorInfo, a_eDeltaTime);
+            a_eCarAngle = a_tCarData.eAngle + a_CMotorInfo.tMotorData.eDeltaAngle;
+
+        }
+
+        public static rtVector Coordinate_Predict(rtCarData a_tCarData, rtMotorCtrl a_CMotorInfo, double a_eDeltaTime)
         {
             double eDistance = 0, eAngle = 0, eTheta = 0, eSpeed = 0, eT = 0, ePhi = 0, ePhiRad = 0;
             double eLength_C2M = 0; // 兩輪中心到後馬達的距離 
@@ -980,7 +1065,7 @@ namespace PLC_Control
                 }
 
 
-                eDistance = eSpeed * (1 / FREQUENCY); // distance = V x T = 所旋轉的弧長
+                eDistance = eSpeed * a_eDeltaTime; // distance = V x T = 所旋轉的弧長
 
                 ePhi = eDistance / eLength_C2O; // 這裡單位是徑度 >> 旋轉角度 = 弧長 / 旋轉半徑
 
@@ -1071,7 +1156,7 @@ namespace PLC_Control
         {
             bool bMatched = false;
             double eAngleError = 0;
-            double eAngleDelay = 0;
+            double eAngleDelay = 0; // 確認輪胎有轉到90度
 
             eAngleError = DeltaAngleCal(a_tCarData.eAngle, a_eTargetAngle);
 
@@ -1094,7 +1179,15 @@ namespace PLC_Control
                 eAngleDelay = a_CMotorInfo.tMotorData.lMotorAngle - a_tCarData.eWheelAngle;
                 if(Math.Abs(eAngleDelay) < ANGLE_MATCH_TH)
                 {
-                    a_CMotorInfo.tMotorData.lMotorPower = TURN_POWER;
+                    if (Math.Abs(eAngleError) > ALIGNMENT_SPEED_ANGLE_TH)
+                    {
+                        a_CMotorInfo.tMotorData.lMotorPower = TURN_POWER;
+                    }
+                    else
+                    {
+                        a_CMotorInfo.tMotorData.lMotorPower = MIN_POWER;
+                    }
+                        
                 }
                 else
                 {
@@ -1261,6 +1354,12 @@ namespace PLC_Control
 
                 // 算出要跟路徑的夾角
                 eTargetCarAngleOffset = PathAngleOffsetCal(eDistance, a_CMotorInfo.tMotorCfg.tPID_ThetaOffsetCoe);
+#if rtAGV_BACK_MODE
+                if(a_CMotorInfo.tMotorData.lMotorPower<0)
+                {   // 倒退走
+                    eTargetCarAngleOffset = -eTargetCarAngleOffset;
+                }
+#endif
                 a_CMotorInfo.tMotorData.Debug_TargetAngleOffset1 = eTargetCarAngleOffset;
 #if rtAGV_DEBUG_PRINT
                 Console.WriteLine("eTargetCarAngleOffset1:" + eTargetCarAngleOffset.ToString());
@@ -1280,9 +1379,17 @@ namespace PLC_Control
 #if rtAGV_DEBUG_PRINT
                 Console.WriteLine("eTargetCarAngleOffset2:" + eTargetCarAngleOffset.ToString());
 #endif
-                // 算出目標車身角度
+
+
+                // 算出目標車身角度 (vector format)
                 rtVector tZeroVector = new rtVector(0,0);
                 tTargetCarVector = rtVectorOP.Rotate(tPathVector, tZeroVector, eTargetCarAngleOffset * Math.PI / 180);
+#if rtAGV_BACK_MODE
+                if (a_CMotorInfo.tMotorData.lMotorPower < 0)
+                {   // 倒退走
+                    tTargetCarVector = rtVectorOP.Rotate(tTargetCarVector, tZeroVector, 180 * Math.PI / 180);
+                }
+#endif
 
                 // 算出目標車身角度與當下車身角度的差距
                 eDeltaCarAngle = AngleDifferenceCal(tTargetCarVector, eCarAngle);
@@ -1316,11 +1423,13 @@ namespace PLC_Control
 
         public int height;
 
-        public int distanceDepth
-            ;
+        public int distanceDepth;
+
         public void Init()
         {
             ucStatus = (byte)rtForkCtrl.ForkStatus.NULL;
+            height = 0;
+            distanceDepth = 0;
         }
 
     }
