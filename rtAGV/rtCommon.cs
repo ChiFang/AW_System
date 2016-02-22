@@ -96,7 +96,7 @@ namespace rtAGV_Common
 
     public struct rtWarehousingInfo
     {
-        /** \brief Node Id */
+        /** \brief Node Id: 代表他連結到MAP中哪一個結點 */
         public NodeId tNodeId;
 
         /** \brief Warehousing position */

@@ -1425,11 +1425,14 @@ namespace PLC_Control
 
         public int distanceDepth;
 
+        public bool bEnable;
+
         public void Init()
         {
             ucStatus = (byte)rtForkCtrl.ForkStatus.NULL;
             height = 0;
             distanceDepth = 0;
+            bEnable = false;
         }
 
     }
@@ -1448,6 +1451,18 @@ namespace PLC_Control
         /** \brief 堆高機貨叉狀態宣告 */
         public enum ForkStatus { NULL, ALIMENT, SET_HEIGHT, FORTH, BACKWARD, PICKUP, PICKDOWN, RESET_HEIGHT, FINISH , ERROR};
 
+        /** \brief 堆高機貨叉動作模式 */
+        public enum ForkActionMode { LOAD = 0,UNLOAD = 1};
+
+        /** \brief Define: 判斷是否到達要的高度跟深度 */
+        public const double FORK_MATCH_TH = 25;
+
+        /** \brief Define: 貨叉最大深度 */
+        public const int FORK_MAX_DEPTH = 4500;
+
+        /** \brief Define: 貨叉舉起高度 */
+        public const int FORK_PICKUP_HEIGHT = 100;
+
         public rtForkCtrl()
         {
             tForkData.Init();
@@ -1456,13 +1471,15 @@ namespace PLC_Control
         public static void LOADTest(ref rtForkCtrl_Data tForkData)
         {
             tForkData.height = 125;
-            tForkData.distanceDepth = 4500;
+            tForkData.distanceDepth = FORK_MAX_DEPTH;
+            tForkData.bEnable = true;
         }
 
         public static void UNLOADTest(ref rtForkCtrl_Data tForkData)
         {
             tForkData.height = 125;
-            tForkData.distanceDepth = 4500;
+            tForkData.distanceDepth = FORK_MAX_DEPTH;
+            tForkData.bEnable = true;
         }
 
      }
