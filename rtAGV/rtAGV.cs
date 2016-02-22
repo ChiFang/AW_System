@@ -128,7 +128,7 @@ namespace rtAGV_Sys
         public rtAGV_CFG tAGV_Cfg;
 
         /** \brief Input Data: AGV Command */
-        public uint ulAGV_Cmd = 0;
+        public ulong ullAGV_Cmd = 0;
 
         /** \brief InOutput Data: AGV data */
         public rtAGV_Data tAGV_Data;
@@ -143,13 +143,13 @@ namespace rtAGV_Sys
             Reset(this);
         }
 
-        public void ExecuteCmd(uint a_ulAGV_Cmd)
+        public void ExecuteCmd(ulong a_ullAGV_Cmd)
         {
             uint ulAction = 0;
-            if (a_ulAGV_Cmd != ulAGV_Cmd)
+            if (a_ullAGV_Cmd != ullAGV_Cmd)
             { // 不一樣 >> 新命令
-                ulAGV_Cmd = a_ulAGV_Cmd;
-                ulAction = (ulAGV_Cmd >> CMD) & MASK;
+                ullAGV_Cmd = a_ullAGV_Cmd;
+                ulAction = (uint)((ullAGV_Cmd >> CMD) & MASK);
                 switch (ulAction)
                 {
                     // 運送貨物
@@ -237,7 +237,7 @@ namespace rtAGV_Sys
     {
 
         // set cmd
-        a_CAGV_Sys.ulAGV_Cmd = 0;
+        a_CAGV_Sys.ullAGV_Cmd = 0;
 
         // set cfg
         a_CAGV_Sys.tAGV_Cfg.tCarCfg.lLength = 1500;
@@ -276,10 +276,10 @@ namespace rtAGV_Sys
             NodeId tSrc;
 
             // step 0: extract element from command
-            tSrc.lRegion = (int)((ulAGV_Cmd >> SRC_REGION) & MASK);
-            tSrc.lIndex = (int)((ulAGV_Cmd >> SRC_POSITION) & MASK);
-            tDest.lRegion = (int)((ulAGV_Cmd >> DEST_REGION) & MASK);
-            tDest.lIndex = (int)((ulAGV_Cmd >> DEST_POSITION) & MASK);
+            tSrc.lRegion = (int)((ullAGV_Cmd >> SRC_REGION) & MASK);
+            tSrc.lIndex = (int)((ullAGV_Cmd >> SRC_POSITION) & MASK);
+            tDest.lRegion = (int)((ullAGV_Cmd >> DEST_REGION) & MASK);
+            tDest.lIndex = (int)((ullAGV_Cmd >> DEST_POSITION) & MASK);
 
             // step 1: move to goods position
 #if rtAGV_TEST_0    // hard code 設定路徑
@@ -289,9 +289,25 @@ namespace rtAGV_Sys
             MoveToAssignedPosition(tSrc);
             tAGV_Data.atPathInfo = new rtPath_Info[0]; // 清空路靖資料
 
+            if(tAGV_Data.ucAGV_Status == (byte)rtAGVStatus.EMERGENCY_STOP)
+            {
+                // 初始化 motor & fork control Class
+                tAGV_Data.CFork = new rtForkCtrl();
+                tAGV_Data.CMotor = new rtMotorCtrl();
+                return;
+            }
+
             // step 2:Load goods
             tAGV_Data.ucAGV_Status = (byte)rtAGVStatus.LOAD;
             Storage(tSrc);
+
+            if (tAGV_Data.ucAGV_Status == (byte)rtAGVStatus.EMERGENCY_STOP)
+            {
+                // 初始化 motor & fork control Class
+                tAGV_Data.CFork = new rtForkCtrl();
+                tAGV_Data.CMotor = new rtMotorCtrl();
+                return;
+            }
 
             // step 3:move to destination
 #if rtAGV_TEST_0    // hard code 設定路徑
@@ -301,13 +317,37 @@ namespace rtAGV_Sys
             MoveToAssignedPosition(tDest);
             tAGV_Data.atPathInfo = new rtPath_Info[0]; // 清空路靖資料
 
+            if (tAGV_Data.ucAGV_Status == (byte)rtAGVStatus.EMERGENCY_STOP)
+            {
+                // 初始化 motor & fork control Class
+                tAGV_Data.CFork = new rtForkCtrl();
+                tAGV_Data.CMotor = new rtMotorCtrl();
+                return;
+            }
+
             // step 4:Unload goods
             tAGV_Data.ucAGV_Status = (byte)rtAGVStatus.UNLOAD;
             Storage(tDest);
 
+            if (tAGV_Data.ucAGV_Status == (byte)rtAGVStatus.EMERGENCY_STOP)
+            {
+                // 初始化 motor & fork control Class
+                tAGV_Data.CFork = new rtForkCtrl();
+                tAGV_Data.CMotor = new rtMotorCtrl();
+                return;
+            }
+
             // step 5:stand by at assign position (TBD)
             tAGV_Data.ucAGV_Status = (byte)rtAGVStatus.STANDBY;
             StandBy();
+
+            if (tAGV_Data.ucAGV_Status == (byte)rtAGVStatus.EMERGENCY_STOP)
+            {
+                // 初始化 motor & fork control Class
+                tAGV_Data.CFork = new rtForkCtrl();
+                tAGV_Data.CMotor = new rtMotorCtrl();
+                return;
+            }
         }
 
         public static rtAGV_SensorData ReadSensorData()
