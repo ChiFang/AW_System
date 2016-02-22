@@ -1,4 +1,6 @@
-﻿
+﻿#define rtAGV_TEST_0
+
+
 using System;
 
 using rtAGV_Common;
@@ -6,9 +8,10 @@ using PLC_Control;
 using rtAGV_Navigate;
 
 
+
 namespace rtAGV_Sys
 {
-	public struct rtCarCFG
+    public struct rtCarCFG
     {
         /** \brief 兩輪中心到後輪距離 */
         public int lLength;
@@ -20,16 +23,19 @@ namespace rtAGV_Sys
     public struct rtAGV_CFG
     {
         /** \brief Goods Infomation of each one >> 貨架設定*/
-        public rtWarehousingInfo[][] atWarehousingInfo;
+        public rtWarehousingInfo[][] atWarehousingCfg;
 
         /** \brief Region Cfg 區域範圍設定*/
         public ROI[] atRegionCfg;
 
         /** \brief Map 地圖設定 */
-        public rtAGV_MAP tMap;
+        public rtAGV_MAP tMapCfg;
 
         /** \brief Spec of AGV car 車身規格設定 */
-        public rtCarCFG tCarData;
+        public rtCarCFG tCarCfg;
+
+        /** \brief 車輪馬達控制參數設定設定 */
+        public rtMotor_Cfg tMotorCtrlCfg;
     }
 
     public struct rtAGV_SensorData
@@ -42,6 +48,15 @@ namespace rtAGV_Sys
 
         /** \brief 定位方向 */
         public double eDirection;
+
+        /** \brief Left Wheel Speed */
+        public double eLeftWheelSpeed;
+
+        /** \brief Right Wheel Speed */
+        public double eRightWheelSpeed;
+
+        /** \brief Fork Input Data */
+        public rtForkCtrl_Data tForkInputData;
     }
 
     public struct rtAGV_Data
@@ -53,16 +68,22 @@ namespace rtAGV_Sys
         public rtPath_Info[] atPathInfo;
 
         /** \brief Motor data 馬達相關數值 */
-        public rtMotorCtrl tMotor;
+        public rtMotorCtrl CMotor;
 
         /** \brief Fork data 貨叉相關數值 */
-        public rtForkCtrl tFork;
-
-        /** \brief Finish Flag 用於檢查每個小步驟是否完成 */
-        public bool bFinishFlag;
+        public rtForkCtrl CFork;
 
         /** \brief 當下車子資訊 */
         public rtCarData tCarInfo;
+
+        /** \brief Output Data: AGV Status */
+        public byte ucAGV_Status;
+
+        /** \brief Finish Flag 用於檢查每個小步驟是否完成 (TBD) */
+        public bool bFinishFlag;
+
+        /** \brief InOutput Data: Sensor Data */
+        public rtAGV_SensorData tSensorData;
     }
 
     public class rtSensorReader
@@ -81,9 +102,9 @@ namespace rtAGV_Sys
 
     public class rtAGV_Control
     {
-        public enum rtAGVCmd {STOP = 0x00, DELIVER = 0x01, CONTINUE = 0x02, PAUSE = 0x03, RESET = 0x04};
+        public enum rtAGVCmd { STOP = 0x00, DELIVER = 0x01, CONTINUE = 0x02, PAUSE = 0x03, RESET = 0x04 };
 
-        public enum rtAGVStatus { NON_INITAILIZE = 0, BUSY = 1, PAUSE = 2, STANDBY = 3, STOP = 4, EMERGENCY_STOP = 5, ERROR_NO_CFG = 6};
+        public enum rtAGVStatus { NON_INITAILIZE = 0, BUSY = 1, PAUSE = 2, STANDBY = 3, STOP = 4, EMERGENCY_STOP = 5, ERROR_NO_CFG = 6, MOVE_TO_SRC = 7, LOAD = 8, MOVE_TO_DEST = 9, UNLOAD = 10 };
 
         /** \brief Define: CMD shift bits */
         public const ushort CMD = 56;
@@ -107,16 +128,13 @@ namespace rtAGV_Sys
         public rtAGV_CFG tAGV_Cfg;
 
         /** \brief Input Data: AGV Command */
-        public uint ulAGV_Cmd = 0;
+        public ulong ullAGV_Cmd = 0;
 
         /** \brief InOutput Data: AGV data */
         public rtAGV_Data tAGV_Data;
 
         /** \brief InOutput Data: Sensor Data */
-        public rtAGV_SensorData tSensorData;
-
-        /** \brief Output Data: AGV Status */
-        public byte ucAGV_Status = 0;
+        // public rtAGV_SensorData tSensorData;
 
         /** \brief 初始化用 建構函式 */
         public rtAGV_Control()
@@ -125,18 +143,18 @@ namespace rtAGV_Sys
             Reset(this);
         }
 
-        public void ExecuteCmd(uint a_ulAGV_Cmd)
+        public void ExecuteCmd(ulong a_ullAGV_Cmd)
         {
             uint ulAction = 0;
-            if (a_ulAGV_Cmd != ulAGV_Cmd)
+            if (a_ullAGV_Cmd != ullAGV_Cmd)
             { // 不一樣 >> 新命令
-                ulAGV_Cmd = a_ulAGV_Cmd;
-                ulAction = (ulAGV_Cmd >> CMD) & MASK;
+                ullAGV_Cmd = a_ullAGV_Cmd;
+                ulAction = (uint)((ullAGV_Cmd >> CMD) & MASK);
                 switch (ulAction)
                 {
                     // 運送貨物
                     case (uint)rtAGVCmd.DELIVER:
-                        Deliver(ulAGV_Cmd);
+                        Deliver();
                         break;
                     // 停止
                     case (uint)rtAGVCmd.STOP:
@@ -161,26 +179,30 @@ namespace rtAGV_Sys
             }
         }
 
-        public static void rtAGV_Navigation(rtWarehousingInfo a_tLocatData, rtAGV_CFG a_tAGV_Cfg, ref rtAGV_Data a_tAGV_Data, ref byte a_ucAGV_Status, ROI[] a_atObstacle)
+        public static void rtAGV_Navigation(rtWarehousingInfo a_tLocatData, rtAGV_CFG a_tAGV_Cfg, ref rtAGV_Data a_tAGV_Data, ROI[] a_atObstacle)
         {
             if (a_tAGV_Data.atPathInfo.Length <= 0)
             {   // 沒路徑才計算，之後系統執行完導航都要清掉 path data避免之後動作載道上一次的路徑資料
                 // path planning
                 rtPathPlanning.rtAGV_PathPlanning(
-                    a_tAGV_Cfg.tMap, a_tAGV_Cfg.atWarehousingInfo, a_tAGV_Cfg.atRegionCfg,
+                    a_tAGV_Cfg.tMapCfg, a_tAGV_Cfg.atWarehousingCfg, a_tAGV_Cfg.atRegionCfg,
                     ref a_tAGV_Data.atPathInfo, ref a_tAGV_Data.tCarInfo, a_tLocatData, a_atObstacle);
             }
         }
 
-        public static void rtAGV_MotorCtrl(ref rtAGV_Data a_tAGV_Data, ref byte a_ucAGV_Status)
+        public static void rtAGV_MotorCtrl(ref rtPath_Info[] a_atPathInfo, ref rtMotor_Cfg a_tMotorCtrl_Cfg, rtCarData a_tCarInfo, ref rtMotorCtrl a_CMotor)
         {
 
             double eErrorPower = 0;
             double eErrorAngle = 0;
 
-            eErrorPower = rtMotorCtrl.MotorPower_Ctrl(a_tAGV_Data.atPathInfo, a_tAGV_Data.tCarInfo, ref a_tAGV_Data.tMotor);
+            // set control Cfg >>　沒設定會用預設值
 
-            eErrorAngle = rtMotorCtrl.MotorAngle_CtrlNavigate(a_tAGV_Data.atPathInfo, a_tAGV_Data.tCarInfo, ref a_tAGV_Data.tMotor);
+            // decide Motor Power
+            eErrorPower = rtMotorCtrl.MotorPower_Ctrl(a_atPathInfo, a_tCarInfo, ref a_CMotor);
+
+            // decide Motor Angle
+            eErrorAngle = rtMotorCtrl.MotorAngle_CtrlNavigate(a_atPathInfo, a_tCarInfo, ref a_CMotor);
         }
 
         public static void Reset(rtAGV_Control tAGV)
@@ -198,47 +220,134 @@ namespace rtAGV_Sys
 
         }
 
-        public void Deliver(uint a_ulAGV_Cmd)
+
+        public void MoveToAssignedPosition(NodeId a_tAssignedNode)
+        {
+            // 初始化 motor control Class
+            tAGV_Data.CMotor = new rtMotorCtrl();
+
+            while (tAGV_Data.CMotor.tMotorData.bFinishFlag == false && tAGV_Data.ucAGV_Status != (byte)rtAGVStatus.EMERGENCY_STOP)
+            {
+                AutoNavigate(a_tAssignedNode, tAGV_Cfg, tAGV_Data.tSensorData, ref tAGV_Data);
+            }
+        }
+
+#if rtAGV_TEST_0    // hard code 設定路徑
+    public static void Test_0(ref rtAGV_Control a_CAGV_Sys)
+    {
+
+        // set cmd
+        a_CAGV_Sys.ullAGV_Cmd = 0;
+
+        // set cfg
+        a_CAGV_Sys.tAGV_Cfg.tCarCfg.lLength = 1500;
+        a_CAGV_Sys.tAGV_Cfg.tCarCfg.lWidth = 1140;
+        a_CAGV_Sys.tAGV_Cfg.atWarehousingCfg = new rtWarehousingInfo[1][];  //  1個區域
+        a_CAGV_Sys.tAGV_Cfg.atWarehousingCfg[0] = new rtWarehousingInfo[2]; //  2個櫃位
+
+        // 設定櫃位連到哪個節點
+        a_CAGV_Sys.tAGV_Cfg.atWarehousingCfg[0][0].tNodeId.lRegion = 0;
+        a_CAGV_Sys.tAGV_Cfg.atWarehousingCfg[0][0].tNodeId.lIndex = 0;
+        a_CAGV_Sys.tAGV_Cfg.atWarehousingCfg[0][1].tNodeId.lRegion = 0;
+        a_CAGV_Sys.tAGV_Cfg.atWarehousingCfg[0][1].tNodeId.lIndex = 1;
+
+        a_CAGV_Sys.tAGV_Cfg.tMapCfg.atNodeGlobal = new rtAGV_MAP_node[1];  //  1個區域
+        a_CAGV_Sys.tAGV_Cfg.tMapCfg.atNodeLocal = new rtAGV_MAP_node[1][];  //  1個區域
+        a_CAGV_Sys.tAGV_Cfg.tMapCfg.atNodeLocal[0] = new rtAGV_MAP_node[2];  //  2個節點
+
+        // 設定結點 & 櫃位位置
+        a_CAGV_Sys.tAGV_Cfg.tMapCfg.atNodeLocal[0][0].tCoordinate.eX = 0;
+        a_CAGV_Sys.tAGV_Cfg.tMapCfg.atNodeLocal[0][0].tCoordinate.eY = 0;
+        a_CAGV_Sys.tAGV_Cfg.tMapCfg.atNodeLocal[0][1].tCoordinate.eX = 0;
+        a_CAGV_Sys.tAGV_Cfg.tMapCfg.atNodeLocal[0][1].tCoordinate.eY = 0;
+
+        a_CAGV_Sys.tAGV_Cfg.atWarehousingCfg[0][0].tCoordinate.eX = 0;
+        a_CAGV_Sys.tAGV_Cfg.atWarehousingCfg[0][0].tCoordinate.eY = 0;
+        a_CAGV_Sys.tAGV_Cfg.atWarehousingCfg[0][1].tCoordinate.eX = 0;
+        a_CAGV_Sys.tAGV_Cfg.atWarehousingCfg[0][1].tCoordinate.eY = 0;
+
+        a_CAGV_Sys.Deliver();
+    }
+    
+#endif
+        public void Deliver()
         {
             NodeId tDest;
             NodeId tSrc;
 
             // step 0: extract element from command
-            tSrc.lRegion = (int)((a_ulAGV_Cmd >> SRC_REGION) & MASK);
-            tSrc.lIndex = (int)((a_ulAGV_Cmd >> SRC_POSITION) & MASK);
-            tDest.lRegion = (int)((a_ulAGV_Cmd >> DEST_REGION) & MASK);
-            tDest.lIndex = (int)((a_ulAGV_Cmd >> DEST_POSITION) & MASK);
+            tSrc.lRegion = (int)((ullAGV_Cmd >> SRC_REGION) & MASK);
+            tSrc.lIndex = (int)((ullAGV_Cmd >> SRC_POSITION) & MASK);
+            tDest.lRegion = (int)((ullAGV_Cmd >> DEST_REGION) & MASK);
+            tDest.lIndex = (int)((ullAGV_Cmd >> DEST_POSITION) & MASK);
 
             // step 1: move to goods position
-            tAGV_Data.bFinishFlag = false;
-            while(tAGV_Data.bFinishFlag == false)
+#if rtAGV_TEST_0    // hard code 設定路徑
+
+#endif
+            tAGV_Data.ucAGV_Status = (byte)rtAGVStatus.MOVE_TO_SRC;
+            MoveToAssignedPosition(tSrc);
+            tAGV_Data.atPathInfo = new rtPath_Info[0]; // 清空路靖資料
+
+            if(tAGV_Data.ucAGV_Status == (byte)rtAGVStatus.EMERGENCY_STOP)
             {
-                AutoNavigate(tSrc, tAGV_Cfg, tSensorData, ref tAGV_Data, ref ucAGV_Status);
+                // 初始化 motor & fork control Class
+                tAGV_Data.CFork = new rtForkCtrl();
+                tAGV_Data.CMotor = new rtMotorCtrl();
+                return;
             }
 
             // step 2:Load goods
-            tAGV_Data.bFinishFlag = false;
-            while (tAGV_Data.bFinishFlag == false)
+            tAGV_Data.ucAGV_Status = (byte)rtAGVStatus.LOAD;
+            Storage(tSrc);
+
+            if (tAGV_Data.ucAGV_Status == (byte)rtAGVStatus.EMERGENCY_STOP)
             {
-                LOAD(tAGV_Cfg.atWarehousingInfo[tSrc.lRegion][tSrc.lIndex], tSensorData, ref tAGV_Data);
+                // 初始化 motor & fork control Class
+                tAGV_Data.CFork = new rtForkCtrl();
+                tAGV_Data.CMotor = new rtMotorCtrl();
+                return;
             }
 
             // step 3:move to destination
-            tAGV_Data.bFinishFlag = false;
-            while (tAGV_Data.bFinishFlag == false)
+#if rtAGV_TEST_0    // hard code 設定路徑
+
+#endif
+            tAGV_Data.ucAGV_Status = (byte)rtAGVStatus.MOVE_TO_DEST;
+            MoveToAssignedPosition(tDest);
+            tAGV_Data.atPathInfo = new rtPath_Info[0]; // 清空路靖資料
+
+            if (tAGV_Data.ucAGV_Status == (byte)rtAGVStatus.EMERGENCY_STOP)
             {
-                AutoNavigate(tDest, tAGV_Cfg, tSensorData, ref tAGV_Data, ref ucAGV_Status);
+                // 初始化 motor & fork control Class
+                tAGV_Data.CFork = new rtForkCtrl();
+                tAGV_Data.CMotor = new rtMotorCtrl();
+                return;
             }
 
             // step 4:Unload goods
-            tAGV_Data.bFinishFlag = false;
-            while (tAGV_Data.bFinishFlag == false)
+            tAGV_Data.ucAGV_Status = (byte)rtAGVStatus.UNLOAD;
+            Storage(tDest);
+
+            if (tAGV_Data.ucAGV_Status == (byte)rtAGVStatus.EMERGENCY_STOP)
             {
-                UNLOAD(tAGV_Cfg.atWarehousingInfo[tDest.lRegion][tDest.lIndex], tSensorData, ref tAGV_Data);
+                // 初始化 motor & fork control Class
+                tAGV_Data.CFork = new rtForkCtrl();
+                tAGV_Data.CMotor = new rtMotorCtrl();
+                return;
             }
 
             // step 5:stand by at assign position (TBD)
+            tAGV_Data.ucAGV_Status = (byte)rtAGVStatus.STANDBY;
             StandBy();
+
+            if (tAGV_Data.ucAGV_Status == (byte)rtAGVStatus.EMERGENCY_STOP)
+            {
+                // 初始化 motor & fork control Class
+                tAGV_Data.CFork = new rtForkCtrl();
+                tAGV_Data.CMotor = new rtMotorCtrl();
+                return;
+            }
         }
 
         public static rtAGV_SensorData ReadSensorData()
@@ -249,213 +358,214 @@ namespace rtAGV_Sys
         }
 
 
-        public static ROI[] ObstacleAvoidance(rtCarCFG a_tCarCfg, ref bool a_bEmergencyFlag)
+        public static bool ObstacleAvoidance(rtCarCFG a_tCarCfg, rtAGV_SensorData a_tSensorData, ref rtCarData a_tCarInfo, ROI[] a_atObstacle)
         {
-            ROI[] atObstacle = new ROI[0];
-            
+            bool bEmergencyFlag = false;         
 
-            return atObstacle;
+            return bEmergencyFlag;
         }
         
 
-        public static void AutoNavigate(NodeId a_tDestination, rtAGV_CFG a_tAGV_Cfg, rtAGV_SensorData a_tSensorData, ref rtAGV_Data a_tAGV_Data, ref byte a_ucAGV_Status)
+        public static void AutoNavigate(NodeId a_tDestination, rtAGV_CFG a_tAGV_Cfg, rtAGV_SensorData a_tSensorData, ref rtAGV_Data a_tAGV_Data)
         {
             rtWarehousingInfo LocatData;    // 目的地
-            ROI[] atObstacle;
+            ROI[] atObstacle = new ROI[0];
 
             // 從cfg中找出 目的地在哪個櫃位，不論是取貨點還是放貨點
-            LocatData = a_tAGV_Cfg.atWarehousingInfo[a_tDestination.lRegion][a_tDestination.lIndex];
+            LocatData = a_tAGV_Cfg.atWarehousingCfg[a_tDestination.lRegion][a_tDestination.lIndex];
 
-            // Obstacle Avoidance 檢查 當下路徑 或方向有沒有障礙物的威脅，並且回傳障礙物資訊
-            atObstacle = ObstacleAvoidance(a_tAGV_Cfg.tCarData, ref a_tAGV_Data.bEmergencyFlag);
+            // Obstacle Avoidance 檢查當下路徑或方向有沒有障礙物的威脅，並且回傳障礙物資訊和緊急訊號
+            a_tAGV_Data.bEmergencyFlag = ObstacleAvoidance(a_tAGV_Cfg.tCarCfg, a_tSensorData, ref a_tAGV_Data.tCarInfo, atObstacle);
 
             if (a_tAGV_Data.bEmergencyFlag == true)
             {
-                a_ucAGV_Status = (byte)rtAGVStatus.EMERGENCY_STOP;
-                a_tAGV_Data.bFinishFlag = true;
+                a_tAGV_Data.ucAGV_Status = (byte)rtAGVStatus.EMERGENCY_STOP;
             }
             else
             {
                 // 檢測或算出路徑
-                rtAGV_Navigation(LocatData, a_tAGV_Cfg, ref a_tAGV_Data, ref a_ucAGV_Status, atObstacle);
+                rtAGV_Navigation(LocatData, a_tAGV_Cfg, ref a_tAGV_Data, atObstacle);
 
                 // 控制馬達
-                rtAGV_MotorCtrl(ref a_tAGV_Data, ref a_ucAGV_Status);
+                rtAGV_MotorCtrl(ref a_tAGV_Data.atPathInfo, ref a_tAGV_Cfg.tMotorCtrlCfg, a_tAGV_Data.tCarInfo, ref a_tAGV_Data.CMotor);
             }
         }
 
-        public static void LOAD(rtWarehousingInfo a_tLocatData, rtAGV_SensorData a_tSensorData, ref rtAGV_Data a_tAGV_Data)
+        public void Storage(NodeId a_tStoragePos)
         {
-            bool bMatched = false;
+            bool bDone = false;
+            double eDiffHeight = 0;
+            double eDiffDepth = 0;
+            rtPath_Info[] atPathInfo = new rtPath_Info[1];
+            rtVector tTmpPos = new rtVector(0,0);
 
-            while(bMatched)
-            {   // 一直執行到 對齊為止 >> 另有執行緒 隨時更新 a_tAGV_Data.tCarInfo
-                bMatched = rtMotorCtrl.CarAngleAlignment(a_tLocatData.eDirection, a_tAGV_Data.tCarInfo, a_tAGV_Data.tMotor);
-            }
-            
-            if (bMatched)
-            {   // 已對齊 開始取貨
-                // step 0: 升到貨物的高度
+            // 初始化 motor & fork control Class
+            tAGV_Data.CFork = new rtForkCtrl();
+            tAGV_Data.CMotor = new rtMotorCtrl();
 
-                // step 1: 伸貨叉
-
-                // step 2: 舉貨叉 (舉起 x mm ??)
-
-                // step 3: 收貨叉
-
-                // step 4: 降回最低點
-            }
-        }
-
-        public static void UNLOAD(rtWarehousingInfo a_tLocatData, rtAGV_SensorData a_tSensorData, ref rtAGV_Data a_tAGV_Data)
-        {
-            bool bMatched = false;
-
-            while (bMatched)
-            {   // 一直執行到 對齊為止 >> 另有執行緒 隨時更新 a_tAGV_Data.tCarInfo
-                bMatched = rtMotorCtrl.CarAngleAlignment(a_tLocatData.eDirection, a_tAGV_Data.tCarInfo, a_tAGV_Data.tMotor);
-            }
-
-            if (bMatched)
-            {   // 已對齊 開始卸貨
-                // step 0: 升到貨物的高度+ x mm ?? 
-
-                // step 1: 伸貨叉
-
-                // step 2: 降貨叉 (下降 x mm ??)
-
-                // step 3: 收貨叉
-
-                // step 4: 降回最低點
-            }
-        }
-
-#if CHUNK
-        //2016/01/25 Lee Add
-        public bool LOADbMatched = false;//是否完成接近貨物
-        public int LOADCount = 0;//取貨進度計數
-        public bool UnLOADbMatched = false;//是否完成接近貨物
-        public int UnLOADCount = 0;//放貨進度計數
-        public enum ForkLODAStatus { SetHeight, Forth, Backward, Pickup, Finished };   //堆高機貨叉狀態宣告
-        public enum ForkUnLODAStatus { SetHeight, Forth, Backward, PutDown, Finished };   //堆高機貨叉狀態宣告
-        public ForkLODAStatus ForkLoStatus = new ForkLODAStatus(); //堆高機取貨貨叉運形狀態
-        public ForkUnLODAStatus ForkUnLoStatus = new ForkUnLODAStatus(); //堆高機放貨貨叉運形狀態
-
-        public static void LOAD_FotTest(rtWarehousingInfo a_tLocatData, rtMotorCtrl a_tMotorData, rtAGV_Control a_tAGV_Class, ref rtAGV_Data a_tAGV_Data, ObjectPLC_KV obj_PLC)
-        {
-            if (!a_tAGV_Class.LOADbMatched)
+            while (tAGV_Data.CFork.tForkData.ucStatus == (byte)rtForkCtrl.ForkStatus.FINISH && tAGV_Data.ucAGV_Status != (byte)rtAGVStatus.EMERGENCY_STOP)
             {
-                a_tAGV_Class.LOADbMatched = rtMotorCtrl.CarAngleAlignment(a_tLocatData.eDirection, a_tAGV_Data.tCarInfo, a_tMotorData);
-            }
-            else
-            {
-                if (a_tAGV_Class.LOADCount == 0)
+                switch (tAGV_Data.CFork.tForkData.ucStatus)
                 {
-                    // step 0: 升到貨物的高度+ x mm ?? 
-                    obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_DM, "20", Convert.ToInt16(a_tLocatData.eHeight));
-                    obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_MR, "007", 1);
-                    obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_MR, "010", 0);
-                    a_tAGV_Class.ForkLoStatus = ForkLODAStatus.SetHeight;
+                    // 初始狀態
+                    case (byte)rtForkCtrl.ForkStatus.NULL:
+                        tAGV_Data.CFork.tForkData.ucStatus = (byte)rtForkCtrl.ForkStatus.ALIMENT;
+                        break;
+
+                    // ALIMENT
+                    case (byte)rtForkCtrl.ForkStatus.ALIMENT:
+                        bDone = false;
+                        tAGV_Data.CFork.tForkData.bEnable = false;
+                        bDone = rtMotorCtrl.CarAngleAlignment(
+                        tAGV_Cfg.atWarehousingCfg[a_tStoragePos.lRegion][a_tStoragePos.lIndex].eDirection,
+                        tAGV_Data.tCarInfo, tAGV_Data.CMotor);
+                        if(bDone)
+                        {
+                            tAGV_Data.CFork.tForkData.ucStatus = (byte)rtForkCtrl.ForkStatus.SET_HEIGHT;
+                        }
+                        break;
+                    // SET_HEIGHT
+                    case (byte)rtForkCtrl.ForkStatus.SET_HEIGHT:
+
+                        if (tAGV_Data.ucAGV_Status == (byte)rtAGVStatus.LOAD)
+                        {   // LOAD
+                            tAGV_Data.CFork.tForkData.bEnable = true;
+                            tAGV_Data.CFork.tForkData.height = (int)tAGV_Cfg.atWarehousingCfg[a_tStoragePos.lRegion][a_tStoragePos.lIndex].eHeight;
+                            tAGV_Data.CFork.tForkData.distanceDepth = rtForkCtrl.FORK_MAX_DEPTH;
+                        }
+                        else
+                        {   // UNLOAD
+                            tAGV_Data.CFork.tForkData.bEnable = true;
+                            tAGV_Data.CFork.tForkData.height = (int)tAGV_Cfg.atWarehousingCfg[a_tStoragePos.lRegion][a_tStoragePos.lIndex].eHeight;
+                            tAGV_Data.CFork.tForkData.height += rtForkCtrl.FORK_PICKUP_HEIGHT;
+                            tAGV_Data.CFork.tForkData.distanceDepth = rtForkCtrl.FORK_MAX_DEPTH;
+                        }
+                        eDiffHeight = 0;
+                        eDiffDepth = 0;
+
+                        eDiffHeight = Math.Abs(tAGV_Data.CFork.tForkData.height - tAGV_Data.tSensorData.tForkInputData.height);
+                        eDiffDepth = Math.Abs(tAGV_Data.CFork.tForkData.distanceDepth - tAGV_Data.tSensorData.tForkInputData.distanceDepth);
+
+                        if (eDiffHeight < rtForkCtrl.FORK_MATCH_TH && eDiffDepth < rtForkCtrl.FORK_MATCH_TH)
+                        {   // 達到要的深度跟高度
+                            tAGV_Data.CFork.tForkData.ucStatus = (byte)rtForkCtrl.ForkStatus.FORTH;
+                            atPathInfo[0].ucStatus = (byte)rtMotorCtrl.rtStatus.STRAIGHT;
+                            atPathInfo[0].ucTurnType = (byte)rtMotorCtrl.rtTurnType.ARRIVE;
+                            atPathInfo[0].tSrc.eX = tAGV_Data.tSensorData.tPosition.eX;
+                            atPathInfo[0].tSrc.eY = tAGV_Data.tSensorData.tPosition.eY;
+                            atPathInfo[0].tDest.eX = tAGV_Cfg.atWarehousingCfg[a_tStoragePos.lRegion][a_tStoragePos.lIndex].tCoordinate.eX;
+                            atPathInfo[0].tDest.eY = tAGV_Cfg.atWarehousingCfg[a_tStoragePos.lRegion][a_tStoragePos.lIndex].tCoordinate.eY;
+                        }
+                        break;
+                    // FORTH
+                    case (byte)rtForkCtrl.ForkStatus.FORTH:
+                        tAGV_Data.CFork.tForkData.bEnable = false;
+                        rtAGV_MotorCtrl(ref atPathInfo, ref tAGV_Cfg.tMotorCtrlCfg, tAGV_Data.tCarInfo, ref tAGV_Data.CMotor);
+
+                        if (tAGV_Data.CMotor.tMotorData.bFinishFlag == true)
+                        {
+                            // reset
+                            tAGV_Data.CMotor = new rtMotorCtrl();
+
+                            if (tAGV_Data.ucAGV_Status == (byte)rtAGVStatus.LOAD)
+                            {   // LOAD
+                                tAGV_Data.CFork.tForkData.ucStatus = (byte)rtForkCtrl.ForkStatus.PICKUP;
+                            }
+                            else
+                            {   // UNLOAD
+                                tAGV_Data.CFork.tForkData.ucStatus = (byte)rtForkCtrl.ForkStatus.PICKDOWN;
+                            }
+                        }
+                        break;
+                    // PICKUP
+                    case (byte)rtForkCtrl.ForkStatus.PICKUP:
+                        tAGV_Data.CFork.tForkData.bEnable = true;
+                        tAGV_Data.CFork.tForkData.height = (int)tAGV_Cfg.atWarehousingCfg[a_tStoragePos.lRegion][a_tStoragePos.lIndex].eHeight;
+                        tAGV_Data.CFork.tForkData.height += rtForkCtrl.FORK_PICKUP_HEIGHT;
+                        tAGV_Data.CFork.tForkData.distanceDepth = rtForkCtrl.FORK_MAX_DEPTH;
+                        eDiffHeight = Math.Abs(tAGV_Data.CFork.tForkData.height - tAGV_Data.tSensorData.tForkInputData.height);
+                        eDiffDepth = Math.Abs(tAGV_Data.CFork.tForkData.distanceDepth - tAGV_Data.tSensorData.tForkInputData.distanceDepth);
+
+                        if (eDiffHeight < rtForkCtrl.FORK_MATCH_TH && eDiffDepth < rtForkCtrl.FORK_MATCH_TH)
+                        {
+                            // 起點終點交換
+                            atPathInfo[0].ucStatus = (byte)rtMotorCtrl.rtStatus.STRAIGHT;
+                            atPathInfo[0].ucTurnType = (byte)rtMotorCtrl.rtTurnType.ARRIVE;
+                            tTmpPos.eX = atPathInfo[0].tSrc.eX;
+                            tTmpPos.eY = atPathInfo[0].tSrc.eY;
+                            atPathInfo[0].tSrc.eX = atPathInfo[0].tDest.eX;
+                            atPathInfo[0].tSrc.eY = atPathInfo[0].tDest.eY;
+                            atPathInfo[0].tDest.eX = tTmpPos.eX;
+                            atPathInfo[0].tDest.eY = tTmpPos.eY;
+
+                            tAGV_Data.CFork.tForkData.ucStatus = (byte)rtForkCtrl.ForkStatus.BACKWARD;
+                        }
+                        break;
+                    // PICKDOWN
+                    case (byte)rtForkCtrl.ForkStatus.PICKDOWN:
+                        tAGV_Data.CFork.tForkData.bEnable = true;
+                        tAGV_Data.CFork.tForkData.height = (int)tAGV_Cfg.atWarehousingCfg[a_tStoragePos.lRegion][a_tStoragePos.lIndex].eHeight;
+                        tAGV_Data.CFork.tForkData.distanceDepth = rtForkCtrl.FORK_MAX_DEPTH;
+                        eDiffHeight = Math.Abs(tAGV_Data.CFork.tForkData.height - tAGV_Data.tSensorData.tForkInputData.height);
+                        eDiffDepth = Math.Abs(tAGV_Data.CFork.tForkData.distanceDepth - tAGV_Data.tSensorData.tForkInputData.distanceDepth);
+
+                        if (eDiffHeight < rtForkCtrl.FORK_MATCH_TH && eDiffDepth < rtForkCtrl.FORK_MATCH_TH)
+                        {
+                            // 起點終點交換
+                            atPathInfo[0].ucStatus = (byte)rtMotorCtrl.rtStatus.STRAIGHT;
+                            atPathInfo[0].ucTurnType = (byte)rtMotorCtrl.rtTurnType.ARRIVE;
+                            tTmpPos.eX = atPathInfo[0].tSrc.eX;
+                            tTmpPos.eY = atPathInfo[0].tSrc.eY;
+                            atPathInfo[0].tSrc.eX = atPathInfo[0].tDest.eX;
+                            atPathInfo[0].tSrc.eY = atPathInfo[0].tDest.eY;
+                            atPathInfo[0].tDest.eX = tTmpPos.eX;
+                            atPathInfo[0].tDest.eY = tTmpPos.eY;
+
+                            tAGV_Data.CFork.tForkData.ucStatus = (byte)rtForkCtrl.ForkStatus.BACKWARD;
+                        }
+                        break;
+                    // BACKWARD
+                    case (byte)rtForkCtrl.ForkStatus.BACKWARD:
+                        tAGV_Data.CFork.tForkData.bEnable = false;
+                        rtAGV_MotorCtrl(ref atPathInfo, ref tAGV_Cfg.tMotorCtrlCfg, tAGV_Data.tCarInfo, ref tAGV_Data.CMotor);
+
+                        if (tAGV_Data.CMotor.tMotorData.bFinishFlag == true)
+                        {
+                            // reset
+                            tAGV_Data.CMotor = new rtMotorCtrl();
+
+                            if (tAGV_Data.ucAGV_Status == (byte)rtAGVStatus.LOAD)
+                            {   // LOAD
+                                tAGV_Data.CFork.tForkData.ucStatus = (byte)rtForkCtrl.ForkStatus.PICKUP;
+                            }
+                            else
+                            {   // UNLOAD
+                                tAGV_Data.CFork.tForkData.ucStatus = (byte)rtForkCtrl.ForkStatus.PICKDOWN;
+                            }
+                        }
+                        break;
+                    // step 4: 降回最低點
+                    case (byte)rtForkCtrl.ForkStatus.RESET_HEIGHT:
+                        tAGV_Data.CFork.tForkData.bEnable = true;
+                        tAGV_Data.CFork.tForkData.height = 0;
+                        tAGV_Data.CFork.tForkData.distanceDepth = 0;
+
+                        eDiffHeight = Math.Abs(tAGV_Data.CFork.tForkData.height - tAGV_Data.tSensorData.tForkInputData.height);
+                        eDiffDepth = Math.Abs(tAGV_Data.CFork.tForkData.distanceDepth - tAGV_Data.tSensorData.tForkInputData.distanceDepth);
+
+                        if (eDiffHeight < rtForkCtrl.FORK_MATCH_TH && eDiffDepth < rtForkCtrl.FORK_MATCH_TH)
+                        {
+                            tAGV_Data.CFork.tForkData.bEnable = false;
+                            tAGV_Data.CFork.tForkData.ucStatus = (byte)rtForkCtrl.ForkStatus.FINISH;
+                        }
+                        break;
+                    default:
+                        // show error
+                        break;
                 }
-                if (a_tAGV_Class.ForkLoStatus == ForkLODAStatus.SetHeight)
-                {
-                    int ForkHeightStatus = obj_PLC.doReadDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_MR, "010");
-                    if (ForkHeightStatus != 0)
-                    {
-                        // step 1: 伸貨叉
-                        a_tAGV_Class.ForkLoStatus = ForkLODAStatus.Forth;
-                        a_tAGV_Class.LOADCount = 100000;
-                        obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_DM, "1", 3250);//貨插-往前
-                    }
-                }
-                if (a_tAGV_Class.LOADCount == 104500)
-                {
-                    // step 2: 抬起貨物
-                    obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_DM, "1", 2000);//貨插-停
-                    obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_DM, "20", Convert.ToInt16(a_tLocatData.eHeight) + 10);
-                    obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_MR, "007", 1);
-                    obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_MR, "010", 0);
-                    a_tAGV_Class.ForkLoStatus = ForkLODAStatus.Pickup;
-                }
-                if (a_tAGV_Class.ForkLoStatus == ForkLODAStatus.Pickup)
-                {
-                    int ForkHeightStatus = obj_PLC.doReadDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_MR, "010");
-                    if (ForkHeightStatus != 0)
-                    {
-                        // step 3: 收貨叉
-                        a_tAGV_Class.ForkLoStatus = ForkLODAStatus.Backward;
-                        a_tAGV_Class.LOADCount = 200000;
-                        obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_DM, "1", 750);//貨插-往後
-                    }
-                }
-                if (a_tAGV_Class.LOADCount == 204500)
-                {
-                    // step 4:結束
-                    obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_DM, "1", 2000);//貨插-停
-                    a_tAGV_Class.ForkLoStatus = ForkLODAStatus.Finished;
-                }
-                a_tAGV_Class.LOADCount += 50;
-                //Console.WriteLine(a_tAGV_Class.LOADCount);
             }
         }
 
-        public static void UNLOAD_ForTest(rtWarehousingInfo a_tLocatData, rtMotorCtrl a_tMotorData, rtAGV_Control a_tAGV_Class, ref rtAGV_Data a_tAGV_Data, ObjectPLC_KV obj_PLC)
-        {
-            if (!a_tAGV_Class.UnLOADbMatched)
-            {   // 一直執行到 對齊為止 >> 另有執行緒 隨時更新 a_tAGV_Data.tCurrentInfo
-                a_tAGV_Class.UnLOADbMatched = rtMotorCtrl.CarAngleAlignment(a_tLocatData.eDirection, a_tAGV_Data.tCarInfo, a_tMotorData);
-            }
-            else
-            {
-                if (a_tAGV_Class.UnLOADCount == 0)
-                {
-                    // step 0: 升到貨物的高度+ x mm ?? 
-                    obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_DM, "20", Convert.ToInt16(a_tLocatData.eHeight) + 10);
-                    obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_MR, "007", 1);
-                    obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_MR, "010", 0);
-                    a_tAGV_Class.ForkUnLoStatus = ForkUnLODAStatus.SetHeight;
-                }
-                if (a_tAGV_Class.ForkUnLoStatus == ForkUnLODAStatus.SetHeight)
-                {
-                    int ForkHeightStatus = obj_PLC.doReadDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_MR, "010");
-                    if (ForkHeightStatus != 0)
-                    {
-                        // step 1: 伸貨叉
-                        a_tAGV_Class.ForkUnLoStatus = ForkUnLODAStatus.Forth;
-                        a_tAGV_Class.UnLOADCount = 100000;
-                        obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_DM, "1", 3250);//貨插-往前
-                    }
-                }
-                if (a_tAGV_Class.UnLOADCount == 104500)
-                {
-                    // step 2: 降貨叉 (下降 x mm ??)
-                    obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_DM, "1", 2000);//貨插-停
-                    obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_DM, "20", Convert.ToInt16(a_tLocatData.eHeight));
-                    obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_MR, "007", 1);
-                    obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_MR, "010", 0);
-                    a_tAGV_Class.ForkUnLoStatus = ForkUnLODAStatus.PutDown;
-                }
-                if (a_tAGV_Class.ForkUnLoStatus == ForkUnLODAStatus.PutDown)
-                {
-                    int ForkHeightStatus = obj_PLC.doReadDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_MR, "010");
-                    if (ForkHeightStatus != 0)
-                    {
-                        // step 3: 收貨叉
-                        a_tAGV_Class.ForkUnLoStatus = ForkUnLODAStatus.Backward;
-                        a_tAGV_Class.UnLOADCount = 200000;
-                        obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_DM, "1", 750);//貨插-往後
-                    }
-                }
-                if (a_tAGV_Class.UnLOADCount == 204500)
-                {
-                    // step 4:結束
-                    obj_PLC.doWriteDevice(DATABUILDERAXLibLB.DBPlcDevice.DKV3000_DM, "1", 2000);//貨插-停
-                    a_tAGV_Class.ForkUnLoStatus = ForkUnLODAStatus.Finished;
-                }
-                a_tAGV_Class.UnLOADCount += 50;
-            }
-        }
-#endif
         public static void EmergencyStop()
         {
 

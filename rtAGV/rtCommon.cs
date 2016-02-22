@@ -8,6 +8,12 @@ namespace rtAGV_Common
         public double eX;
         public double eY;
 
+        public void Init()
+        {
+            eX = 0;
+            eY = 0;
+        }
+
         public rtVector(double a_eX, double a_eY)
         {
             eX = a_eX;
@@ -60,8 +66,8 @@ namespace rtAGV_Common
         /** \brief car right Tire speed */
         public double eCarTireSpeedRight;
 
-        /** \brief Motor angle (direction) */
-        public double eMotorAngle;
+        /** \brief Motor(or wheel) angle (direction) */
+        public double eWheelAngle;
     }
 
     public struct ROI
@@ -90,7 +96,7 @@ namespace rtAGV_Common
 
     public struct rtWarehousingInfo
     {
-        /** \brief Node Id */
+        /** \brief Node Id: 代表他連結到MAP中哪一個結點 */
         public NodeId tNodeId;
 
         /** \brief Warehousing position */
@@ -101,6 +107,8 @@ namespace rtAGV_Common
 
         /** \brief Warehousing Direction: Radius*/
         public double eDirection;
+
+        public double DistanceDepth;
     }
 
     public struct rtAGV_MAP_node
