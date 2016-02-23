@@ -68,6 +68,18 @@ namespace rtAGV_Common
 
         /** \brief Motor(or wheel) angle (direction) */
         public double eWheelAngle;
+
+        public void Init()
+        {
+            tPosition.Init();
+            tMotorPosition.Init();
+            tCarTirepositionL.Init();
+            tCarTirepositionR.Init();
+            eAngle = 0;
+            eCarTireSpeedLeft = 0;
+            eCarTireSpeedRight = 0;
+            eWheelAngle = 0;
+        }
     }
 
     public struct ROI
@@ -128,6 +140,9 @@ namespace rtAGV_Common
 
     public struct rtAGV_MAP
     {
+        /** \brief Region number: 區域個數 */
+        public int alRegionNum;
+
         /** \brief node number in local: 每一區節點個數，array長度代表區域個數 */
         public int[] alNodeNumLocal;
 
@@ -138,9 +153,19 @@ namespace rtAGV_Common
         public rtAGV_MAP_node[][] atNodeLocal;
 
         /** \brief Map table in global : 區域間的路徑權重表 算最短路徑用*/
-        public double[] aePathTableGlobal;
+        public int[] alPathTableGlobal;
 
         /** \brief Map table in local : 每區的路徑權重表 算最短路徑用*/
-        public double[][] aePathTableLocal;
+        public int[][] alPathTableLocal;
+
+        public void Init()
+        {
+            alRegionNum = 0;
+            alNodeNumLocal = new int[alRegionNum];
+            atNodeGlobal = new rtAGV_MAP_node[alRegionNum];
+            atNodeLocal = new rtAGV_MAP_node[alRegionNum][];
+            alPathTableGlobal = new int[alRegionNum];
+            alPathTableLocal = new int[alRegionNum][];
+        }
     }
 }

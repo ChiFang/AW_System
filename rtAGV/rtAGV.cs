@@ -13,11 +13,23 @@ namespace rtAGV_Sys
 {
     public struct rtCarCFG
     {
+        /** \brief Define: 兩輪中心到後輪距離 */
+        public const int CAR_LENGTH = 1500;
+
+        /** \brief Define: 兩輪距離 */
+        public const int CAR_WIDTH_WHEEL = 1140;
+
         /** \brief 兩輪中心到後輪距離 */
         public int lLength;
 
         /** \brief 兩輪距離 */
         public int lWidth;
+
+        public void LoadDefault()
+        {
+            lLength = CAR_LENGTH;
+            lWidth = CAR_WIDTH_WHEEL;
+        }
     }
 
     public struct rtAGV_CFG
@@ -36,6 +48,16 @@ namespace rtAGV_Sys
 
         /** \brief 車輪馬達控制參數設定設定 */
         public rtMotor_Cfg tMotorCtrlCfg;
+
+        public void LoadDefault()
+        {
+            atWarehousingCfg = new rtWarehousingInfo[0][];
+            atRegionCfg = new ROI[0];
+
+            tMapCfg.Init();
+            tCarCfg.LoadDefault();
+            tMotorCtrlCfg.LoadDefault();
+        }
     }
 
     public struct rtAGV_SensorData
@@ -79,11 +101,18 @@ namespace rtAGV_Sys
         /** \brief Output Data: AGV Status */
         public byte ucAGV_Status;
 
-        /** \brief Finish Flag 用於檢查每個小步驟是否完成 (TBD) */
-        public bool bFinishFlag;
-
         /** \brief InOutput Data: Sensor Data */
         public rtAGV_SensorData tSensorData;
+
+        public void Init()
+        {
+            bEmergencyFlag = false;
+            atPathInfo = new rtPath_Info[0];
+            CMotor = new rtMotorCtrl();
+            CFork = new rtForkCtrl();
+            tCarInfo.Init();
+            ucAGV_Status = (byte)rtAGV_Control.rtAGVStatus.NON_INITAILIZE;
+        }
     }
 
     public class rtSensorReader
@@ -132,9 +161,6 @@ namespace rtAGV_Sys
 
         /** \brief InOutput Data: AGV data */
         public rtAGV_Data tAGV_Data;
-
-        /** \brief InOutput Data: Sensor Data */
-        // public rtAGV_SensorData tSensorData;
 
         /** \brief 初始化用 建構函式 */
         public rtAGV_Control()
@@ -205,9 +231,11 @@ namespace rtAGV_Sys
             eErrorAngle = rtMotorCtrl.MotorAngle_CtrlNavigate(a_atPathInfo, a_tCarInfo, ref a_CMotor);
         }
 
-        public static void Reset(rtAGV_Control tAGV)
+        public static void Reset(rtAGV_Control a_tAGV)
         {
-
+            a_tAGV.ullAGV_Cmd = 0x00;
+            a_tAGV.tAGV_Cfg.LoadDefault();
+            a_tAGV.tAGV_Data.Init();
         }
 
         public static void Continue()

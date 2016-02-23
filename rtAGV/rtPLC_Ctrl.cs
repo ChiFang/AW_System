@@ -38,6 +38,18 @@ namespace PLC_Control
 
     public struct rtMotor_Cfg
     {
+        /** \brief Define: PID Power Coeffient Kp */
+        public const double PID_POWER_COE_KP = 0.0256;
+
+        /** \brief Define: PID Coefficient for Theta Offset Kp */
+        public const double PID_THETA_OFFSET_COE_KP = 0.34;
+
+        /** \brief Define: PID Coefficient for Car Angle to motor angle Kp */
+        public const double PID_ANGLE_CAR_MOTOR_COE_KP = 0.75;
+
+        /** \brief Define: Radius of smooth mode: 旋轉半徑 (判斷是否到達定點 開始準備轉向動作) */
+        public const int RADIUS_SMOOTH = 1000;
+
         /** \brief Configure: PID Power Coeffient */
         public rtPID_Coefficient tPID_PowerCoe;
 
@@ -57,6 +69,20 @@ namespace PLC_Control
             tPID_MotorAngleCoe.Init();
             lRotationDistance = 0;
         }
+
+        public void LoadDefault()
+        {
+            tPID_PowerCoe.Init();
+            tPID_ThetaOffsetCoe.Init();
+            tPID_MotorAngleCoe.Init();
+
+            tPID_PowerCoe.eKp = PID_POWER_COE_KP;
+            tPID_ThetaOffsetCoe.eKp = PID_THETA_OFFSET_COE_KP;
+            tPID_MotorAngleCoe.eKp = PID_ANGLE_CAR_MOTOR_COE_KP;
+            lRotationDistance = RADIUS_SMOOTH;
+        }
+
+        
     }
 
     public struct rtMotor_Data
@@ -299,9 +325,6 @@ namespace PLC_Control
         /** \brief Define: distance threshold of simple mode: 判斷是否到達定點 開始準備轉向動作或停止 */
         public const double DISTANCE_ERROR_SIMPLE = 60;
 
-        /** \brief Define: distance threshold of smooth mode: 判斷是否到達定點 開始準備轉向動作 */
-        public const int DISTANCE_ERROR_SMOOTH = 1000;
-
         /** \brief Define: 判斷是否做完轉彎的動作 */
         public const double THETA_ERROR_TURN = 5;
 
@@ -360,15 +383,11 @@ namespace PLC_Control
 
         public rtMotorCtrl()
         {
-            // init configure
-            tMotorCfg.Init();
-            tMotorCfg.tPID_ThetaOffsetCoe.eKp = 0.34;
-            tMotorCfg.tPID_MotorAngleCoe.eKp = 0.75;
-            tMotorCfg.lRotationDistance = DISTANCE_ERROR_SMOOTH;
+            // Load default configure
+            tMotorCfg.LoadDefault();
 
             // init output data
             tMotorData.Init();
-            tMotorData.bFinishFlag = false;
         }
 
         /**
@@ -563,7 +582,7 @@ namespace PLC_Control
                                 }
                                 break;
                             case (byte)rtTurnType.SMOOTH:
-                                if (eErrorCurrent < DISTANCE_ERROR_SMOOTH)
+                                if (eErrorCurrent < rtMotor_Cfg.RADIUS_SMOOTH)
                                 {
                                     // 算出旋轉半徑中心座標
                                     MotorAngle_RotationCenterCal(a_atPathInfo, a_tCarData, ref a_CMotorInfo);
