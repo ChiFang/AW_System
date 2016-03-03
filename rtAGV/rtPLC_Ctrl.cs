@@ -322,6 +322,9 @@ namespace PLC_Control
         /** \brief Define: 馬達(驅動輪胎)在這角度以內以直行計算 */
         public const int ANGLE_TH_MOTION_PREDICT = 5;
 
+        /** \brief Define: 直行時角度超過這設定要車身校正 */
+        public const int ANGLE_TH_NEED_ALIGNMENT = 30;
+
         /** \brief Define: distance threshold of simple mode: 判斷是否到達定點 開始準備轉向動作或停止 */
         public const double DISTANCE_ERROR_SIMPLE = 60;
 
@@ -547,7 +550,7 @@ namespace PLC_Control
                             }   
                         }
                     }
-                    
+
                     bOverDestFlag = OverDestination(a_atPathInfo, a_tCarData.tPosition, a_CMotorInfo.tMotorData.lPathNodeIndex);
                     a_CMotorInfo.tMotorData.Debug_bOverDestFlag = bOverDestFlag;
                     if (bOverDestFlag == true)
@@ -1183,7 +1186,9 @@ namespace PLC_Control
             {
                 a_CMotorInfo.tMotorData.lMotorPower = 0;
                 a_CMotorInfo.tMotorData.lMotorAngle = 0;
-                bMatched = true;
+
+                // 車輪轉回0度才結束
+                bMatched = (Math.Abs(a_tCarData.eWheelAngle) < ANGLE_MATCH_TH) ? true : false;
             }
             else
             {
@@ -1468,7 +1473,7 @@ namespace PLC_Control
         public enum ForkUnLODAStatus { SetHeight, Forth, Backward, PutDown, Finished };
 
         /** \brief 堆高機貨叉狀態宣告 */
-        public enum ForkStatus { NULL, ALIMENT, SET_HEIGHT, FORTH, BACKWARD, PICKUP, PICKDOWN, RESET_HEIGHT, FINISH , ERROR};
+        public enum ForkStatus { NULL, ALIMENT, SET_HEIGHT, FORTH, BACKWARD, PICKUP, PICKDOWN, RESET_HEIGHT, FINISH , ERROR, SET_DEPTH};
 
         /** \brief 堆高機貨叉動作模式 */
         public enum ForkActionMode { LOAD = 0,UNLOAD = 1};

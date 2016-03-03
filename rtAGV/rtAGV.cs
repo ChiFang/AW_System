@@ -133,7 +133,7 @@ namespace rtAGV_Sys
 
     public class rtAGV_Control
     {
-        public enum rtAGVCmd { STOP = 0x00, DELIVER = 0x01, CONTINUE = 0x02, PAUSE = 0x03, RESET = 0x04 };
+        public enum rtAGVCmd { STOP = 0x00, DELIVER = 0x01, CONTINUE = 0x02, PAUSE = 0x03, RESET = 0x04, LOAD = 0x05, UNLOAD = 0x06 };
 
         public enum rtAGVStatus { NON_INITAILIZE = 0, BUSY = 1, PAUSE = 2, STANDBY = 3, STOP = 4, EMERGENCY_STOP = 5, ERROR_NO_CFG = 6, MOVE_TO_SRC = 7, LOAD = 8, MOVE_TO_DEST = 9, UNLOAD = 10 };
 
@@ -184,6 +184,14 @@ namespace rtAGV_Sys
                     case (uint)rtAGVCmd.DELIVER:
                         Deliver();
                         break;
+                    // 取貨物
+                    case (uint)rtAGVCmd.LOAD:
+                        LoadGoods();
+                        break;
+                    // 放貨物
+                    case (uint)rtAGVCmd.UNLOAD:
+                        UnLoadGoods();
+                        break;
                     // 停止
                     case (uint)rtAGVCmd.STOP:
                         EmergencyStop();
@@ -223,14 +231,36 @@ namespace rtAGV_Sys
 
             double eErrorPower = 0;
             double eErrorAngle = 0;
+            double eDeltaCarAngle = 0;
+            double eTargetAngle = 0;
+            int lPathIndex = 0;
+            rtVector tV_S2D = new rtVector();
+            bool bAlignment = false;
 
             // set control Cfg >>　沒設定會用預設值
 
-            // decide Motor Power
-            eErrorPower = rtMotorCtrl.MotorPower_Ctrl(a_atPathInfo, a_tCarInfo, ref a_CMotor);
+            // 判斷是否要車身校正
+            lPathIndex = a_CMotor.tMotorData.lPathNodeIndex;
+            if (lPathIndex == 0)
+            {
+                tV_S2D.eX = a_atPathInfo[lPathIndex].tDest.eX - a_atPathInfo[lPathIndex].tSrc.eX;
+                tV_S2D.eY = a_atPathInfo[lPathIndex].tDest.eY - a_atPathInfo[lPathIndex].tSrc.eY;
+                eDeltaCarAngle = rtMotorCtrl.AngleDifferenceCal(tV_S2D, a_tCarInfo.eAngle);
+            }
 
-            // decide Motor Angle
-            eErrorAngle = rtMotorCtrl.MotorAngle_CtrlNavigate(a_atPathInfo, a_tCarInfo, ref a_CMotor);
+            if (Math.Abs(eDeltaCarAngle) > rtMotorCtrl.ANGLE_TH_NEED_ALIGNMENT)
+            {   // 需要原地旋轉 >> (在第一段小路徑)
+                eTargetAngle = rtVectorOP.Vector2Angle(tV_S2D);
+                bAlignment = rtMotorCtrl.CarAngleAlignment(eTargetAngle, a_tCarInfo, a_CMotor);
+            }
+            else
+            {   // 正常控制
+                // decide Motor Power
+                eErrorPower = rtMotorCtrl.MotorPower_Ctrl(a_atPathInfo, a_tCarInfo, ref a_CMotor);
+
+                // decide Motor Angle
+                eErrorAngle = rtMotorCtrl.MotorAngle_CtrlNavigate(a_atPathInfo, a_tCarInfo, ref a_CMotor);
+            }
         }
 
         public static void Reset(rtAGV_Control a_tAGV)
@@ -364,6 +394,81 @@ namespace rtAGV_Sys
             a_tVar_2 = tVarTmp;
         }
 
+        public void LoadGoods()
+        {
+            NodeId tSrc;
+
+            // step 0: extract element from command
+            tSrc.lRegion = (int)((ullAGV_Cmd >> SRC_REGION) & MASK);
+            tSrc.lIndex = (int)((ullAGV_Cmd >> SRC_POSITION) & MASK);
+
+            // step 1: move to goods position
+#if rtAGV_TEST_0    // hard code 設定路徑
+
+#endif
+            tAGV_Data.ucAGV_Status = (byte)rtAGVStatus.MOVE_TO_SRC;
+  
+            MoveToAssignedPosition(tSrc);
+            tAGV_Data.atPathInfo = new rtPath_Info[0]; // 清空路徑資料
+
+            if (tAGV_Data.ucAGV_Status == (byte)rtAGVStatus.EMERGENCY_STOP)
+            {
+                // 初始化 motor & fork control Class
+                tAGV_Data.CFork = new rtForkCtrl();
+                tAGV_Data.CMotor = new rtMotorCtrl();
+                return;
+            }
+
+            // step 2:Load goods
+            tAGV_Data.ucAGV_Status = (byte)rtAGVStatus.LOAD;
+            Storage(tSrc);
+
+            if (tAGV_Data.ucAGV_Status == (byte)rtAGVStatus.EMERGENCY_STOP)
+            {
+                // 初始化 motor & fork control Class
+                tAGV_Data.CFork = new rtForkCtrl();
+                tAGV_Data.CMotor = new rtMotorCtrl();
+                return;
+            }
+        }
+
+        public void UnLoadGoods()
+        {
+            NodeId tDest;
+
+            // step 0: extract element from command
+            tDest.lRegion = (int)((ullAGV_Cmd >> DEST_REGION) & MASK);
+            tDest.lIndex = (int)((ullAGV_Cmd >> DEST_POSITION) & MASK);
+
+            // step 1:move to destination
+#if rtAGV_TEST_0    // hard code 設定路徑
+
+#endif
+            tAGV_Data.ucAGV_Status = (byte)rtAGVStatus.MOVE_TO_DEST;
+            MoveToAssignedPosition(tDest);
+            tAGV_Data.atPathInfo = new rtPath_Info[0]; // 清空路靖資料
+
+            if (tAGV_Data.ucAGV_Status == (byte)rtAGVStatus.EMERGENCY_STOP)
+            {
+                // 初始化 motor & fork control Class
+                tAGV_Data.CFork = new rtForkCtrl();
+                tAGV_Data.CMotor = new rtMotorCtrl();
+                return;
+            }
+
+            // step 2:Unload goods
+            tAGV_Data.ucAGV_Status = (byte)rtAGVStatus.UNLOAD;
+            Storage(tDest);
+
+            if (tAGV_Data.ucAGV_Status == (byte)rtAGVStatus.EMERGENCY_STOP)
+            {
+                // 初始化 motor & fork control Class
+                tAGV_Data.CFork = new rtForkCtrl();
+                tAGV_Data.CMotor = new rtMotorCtrl();
+                return;
+            }
+        }
+
         public void Deliver()
         {
             NodeId tDest;
@@ -480,8 +585,10 @@ namespace rtAGV_Sys
                 // 檢測或算出路徑
                 rtAGV_Navigation(LocatData, a_tAGV_Cfg, ref a_tAGV_Data, atObstacle);
 
+         
                 // 控制馬達
                 rtAGV_MotorCtrl(ref a_tAGV_Data.atPathInfo, ref a_tAGV_Cfg.tMotorCtrlCfg, a_tAGV_Data.tCarInfo, ref a_tAGV_Data.CMotor);
+                
             }
         }
 
