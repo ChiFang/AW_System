@@ -277,14 +277,14 @@ namespace rtAGV_Sys
             a_tAGV.tAGV_Data.Init();
         }
 
-        public static void Continue()
+        public void Continue()
         {
-
+            ExecuteCmd(ullAGV_Cmd);
         }
 
-        public static void Pause()
+        public void Pause()
         {
-
+            EmergencyStop();
         }
 
 
