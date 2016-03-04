@@ -1188,7 +1188,8 @@ namespace PLC_Control
                 a_CMotorInfo.tMotorData.lMotorAngle = 0;
 
                 // 車輪轉回0度才結束
-                bMatched = (Math.Abs(a_tCarData.eWheelAngle) < ANGLE_MATCH_TH) ? true : false;
+                // Matched = (Math.Abs(a_tCarData.eWheelAngle) < ANGLE_MATCH_TH) ? true : false;  // 轉輪子會讓車身歪掉 >>先不做這個判斷
+                bMatched = true;    // 暫時先這樣
             }
             else
             {
