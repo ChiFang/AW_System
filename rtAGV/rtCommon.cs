@@ -41,6 +41,26 @@ namespace rtAGV_Common
 
         /** \brief turn ytpe of this segment */
         public byte ucTurnType;
+
+        public static rtPath_Info[] InitSet(int a_lPathLength)
+        {
+            int lCnt = 0;
+            rtPath_Info[] atPathInfo = new rtPath_Info[a_lPathLength];
+
+            for(lCnt = 0; lCnt< a_lPathLength - 1; lCnt++)
+            {
+                atPathInfo[lCnt].tSrc.Init();
+                atPathInfo[lCnt].tDest.Init();
+                atPathInfo[lCnt].ucStatus = 1;
+                atPathInfo[lCnt].ucTurnType = 1;
+            }
+            atPathInfo[lCnt].tSrc.Init();
+            atPathInfo[lCnt].tDest.Init();
+            atPathInfo[lCnt].ucStatus = 1;
+            atPathInfo[lCnt].ucTurnType = 2;
+
+            return atPathInfo;
+        }
     }
 
     public struct rtCarData
