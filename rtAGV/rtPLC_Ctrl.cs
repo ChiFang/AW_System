@@ -1298,8 +1298,7 @@ namespace PLC_Control
             double eAngleDelay = 0; // 確認輪胎有轉到90度
 
             eAngleError = DeltaAngleCal(a_tCarData.eAngle, a_eTargetAngle);
-
-            if (Math.Abs(eAngleError) < ANGLE_MATCH_TH || bAlignmentCarAngleMatch)
+            if ((Math.Abs(eAngleError) <= ANGLE_MATCH_TH) || bAlignmentCarAngleMatch)
             {
                 bAlignmentCarAngleMatch = true; // 代表已轉正 >>正在迴正輪胎
                 tMotorData.lMotorPower = 0;
@@ -1643,13 +1642,13 @@ namespace PLC_Control
         public enum ForkActionMode { LOAD = 0,UNLOAD = 1};
 
         /** \brief Define: 判斷是否到達要的高度跟深度 */
-        public const double FORK_MATCH_TH = 25;
+        public const double FORK_MATCH_TH = 2;
 
         /** \brief Define: 貨叉最大深度 */
         public const int FORK_MAX_DEPTH = 4500;
 
         /** \brief Define: 貨叉舉起高度 */
-        public const int FORK_PICKUP_HEIGHT = 100;
+        public const int FORK_PICKUP_HEIGHT = 10;
 
         /** \brief Fork Control Data */
         public rtForkCtrl_Data tForkData;

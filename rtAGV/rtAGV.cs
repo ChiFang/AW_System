@@ -169,6 +169,10 @@ namespace rtAGV_Sys
         /** \brief Output Data: AGV Status Buffer for Pause */
         byte ucAGV_StatusBuf;
 
+        public rtPath_Info[] atPathInfoForkForth;
+
+        public bool bCheckWheelAngle;
+
         /** \brief 初始化用 建構函式 */
         public rtAGV_Control()
         {
@@ -643,7 +647,7 @@ namespace rtAGV_Sys
             else
             {
 #if rtAGV_DEBUG_PRINT
-               // Console.WriteLine("ForkActionFinishCheck-Non" + eDiffHeight + "," + eDiffDepth);
+                //Console.WriteLine("ForkData.height: " + tAGV_Data.CFork.tForkData.height + ",ForkData.distanceDepth :" + tAGV_Data.CFork.tForkData.distanceDepth+ "--" + eDiffHeight + "," + eDiffDepth);
 #endif
                 return false;
             }
@@ -651,12 +655,8 @@ namespace rtAGV_Sys
 
         public void Storage(NodeId a_tStoragePos)
         {
-            bool bDone = false;
-            bool bCheckWheelAngle = false;
-            rtPath_Info[] atPathInfo = new rtPath_Info[1];
-
-            
-
+            bool bDone;
+           // rtPath_Info[] atPathInfo;
             while (tAGV_Data.CFork.tForkData.ucStatus != (byte)rtForkCtrl.ForkStatus.FINISH && tAGV_Data.ucAGV_Status != (byte)rtAGVStatus.EMERGENCY_STOP)
             {
                 switch (tAGV_Data.CFork.tForkData.ucStatus)
@@ -666,6 +666,9 @@ namespace rtAGV_Sys
                         // 初始化 motor & fork control Class
                         tAGV_Data.CFork = new rtForkCtrl();
                         tAGV_Data.CMotor = new rtMotorCtrl();
+                        atPathInfoForkForth = new rtPath_Info[1];
+                        bDone = false;
+                        bCheckWheelAngle = false;    
                         tAGV_Data.CFork.tForkData.ucStatus = (byte)rtForkCtrl.ForkStatus.ALIMENT;
                         break;
 
@@ -700,12 +703,12 @@ namespace rtAGV_Sys
                         if (ForkActionFinishCheck() && bDone)
                         {   // 達到要的深度跟高度 >> 進入FORTH動作
                             tAGV_Data.CFork.tForkData.ucStatus = (byte)rtForkCtrl.ForkStatus.FORTH;
-                            atPathInfo[0].ucStatus = (byte)rtMotorCtrl.rtStatus.STRAIGHT;
-                            atPathInfo[0].ucTurnType = (byte)rtMotorCtrl.rtTurnType.ARRIVE;
-                            atPathInfo[0].tSrc.eX = tAGV_Data.tCarInfo.tPosition.eX;
-                            atPathInfo[0].tSrc.eY = tAGV_Data.tCarInfo.tPosition.eY;
-                            atPathInfo[0].tDest.eX = tAGV_Cfg.atWarehousingCfg[a_tStoragePos.lRegion][a_tStoragePos.lIndex].tCoordinate.eX;
-                            atPathInfo[0].tDest.eY = tAGV_Cfg.atWarehousingCfg[a_tStoragePos.lRegion][a_tStoragePos.lIndex].tCoordinate.eY;
+                            atPathInfoForkForth[0].ucStatus = (byte)rtMotorCtrl.rtStatus.STRAIGHT;
+                            atPathInfoForkForth[0].ucTurnType = (byte)rtMotorCtrl.rtTurnType.ARRIVE;
+                            atPathInfoForkForth[0].tSrc.eX = tAGV_Data.tCarInfo.tPosition.eX;
+                            atPathInfoForkForth[0].tSrc.eY = tAGV_Data.tCarInfo.tPosition.eY;
+                            atPathInfoForkForth[0].tDest.eX = tAGV_Cfg.atWarehousingCfg[a_tStoragePos.lRegion][a_tStoragePos.lIndex].tCoordinate.eX;
+                            atPathInfoForkForth[0].tDest.eY = tAGV_Cfg.atWarehousingCfg[a_tStoragePos.lRegion][a_tStoragePos.lIndex].tCoordinate.eY;
                         }
                         break;
                     // SET_HEIGHT
@@ -721,12 +724,12 @@ namespace rtAGV_Sys
                         if (ForkActionFinishCheck())
                         {   // 達到要的深度跟高度 >> 進入FORTH動作
                             tAGV_Data.CFork.tForkData.ucStatus = (byte)rtForkCtrl.ForkStatus.FORTH;
-                            atPathInfo[0].ucStatus = (byte)rtMotorCtrl.rtStatus.STRAIGHT;
-                            atPathInfo[0].ucTurnType = (byte)rtMotorCtrl.rtTurnType.ARRIVE;
-                            atPathInfo[0].tSrc.eX = tAGV_Data.tCarInfo.tPosition.eX;
-                            atPathInfo[0].tSrc.eY = tAGV_Data.tCarInfo.tPosition.eY;
-                            atPathInfo[0].tDest.eX = tAGV_Cfg.atWarehousingCfg[a_tStoragePos.lRegion][a_tStoragePos.lIndex].tCoordinate.eX;
-                            atPathInfo[0].tDest.eY = tAGV_Cfg.atWarehousingCfg[a_tStoragePos.lRegion][a_tStoragePos.lIndex].tCoordinate.eY;
+                            atPathInfoForkForth[0].ucStatus = (byte)rtMotorCtrl.rtStatus.STRAIGHT;
+                            atPathInfoForkForth[0].ucTurnType = (byte)rtMotorCtrl.rtTurnType.ARRIVE;
+                            atPathInfoForkForth[0].tSrc.eX = tAGV_Data.tCarInfo.tPosition.eX;
+                            atPathInfoForkForth[0].tSrc.eY = tAGV_Data.tCarInfo.tPosition.eY;
+                            atPathInfoForkForth[0].tDest.eX = tAGV_Cfg.atWarehousingCfg[a_tStoragePos.lRegion][a_tStoragePos.lIndex].tCoordinate.eX;
+                            atPathInfoForkForth[0].tDest.eY = tAGV_Cfg.atWarehousingCfg[a_tStoragePos.lRegion][a_tStoragePos.lIndex].tCoordinate.eY;
                         }
                         break;
                     // FORTH
@@ -742,7 +745,7 @@ namespace rtAGV_Sys
 #if rtAGV_DEBUG_PRINT
                             //Console.WriteLine("Path: " + atPathInfo[0].tDest.eX + "," + atPathInfo[0].tDest.eY);
 #endif
-                            rtAGV_MotorCtrl(ref atPathInfo, true);  // 前面已轉正過 >>所以設為true
+                            rtAGV_MotorCtrl(ref atPathInfoForkForth, true);  // 前面已轉正過 >>所以設為true
 
                             if (tAGV_Data.CMotor.tMotorData.bFinishFlag == true)
                             {
@@ -781,12 +784,12 @@ namespace rtAGV_Sys
                     case (byte)rtForkCtrl.ForkStatus.PICKUP:
                         tAGV_Data.CFork.tForkData.height = (int)tAGV_Cfg.atWarehousingCfg[a_tStoragePos.lRegion][a_tStoragePos.lIndex].eHeight + rtForkCtrl.FORK_PICKUP_HEIGHT;
                         tAGV_Data.CFork.tForkData.bEnable = true;
-
+                        //Console.WriteLine("PICKUP:" + tAGV_Data.CFork.tForkData.height + " , " + a_tStoragePos.lRegion + " , " + a_tStoragePos.lIndex);
                         if (ForkActionFinishCheck())
                         {   // 起點終點交換 & 進入 BACKWARD
-                            atPathInfo[0].ucStatus = (byte)rtMotorCtrl.rtStatus.STRAIGHT;
-                            atPathInfo[0].ucTurnType = (byte)rtMotorCtrl.rtTurnType.ARRIVE;
-                            Swap(ref atPathInfo[0].tSrc, ref atPathInfo[0].tDest);
+                            atPathInfoForkForth[0].ucStatus = (byte)rtMotorCtrl.rtStatus.STRAIGHT;
+                            atPathInfoForkForth[0].ucTurnType = (byte)rtMotorCtrl.rtTurnType.ARRIVE;
+                            Swap(ref atPathInfoForkForth[0].tSrc, ref atPathInfoForkForth[0].tDest);
                             tAGV_Data.CFork.tForkData.ucStatus = (byte)rtForkCtrl.ForkStatus.RESET_DEPTH;
                         }
                         break;
@@ -797,9 +800,9 @@ namespace rtAGV_Sys
 
                         if (ForkActionFinishCheck())
                         {   // 起點終點交換 & 進入 BACKWARD
-                            atPathInfo[0].ucStatus = (byte)rtMotorCtrl.rtStatus.STRAIGHT;
-                            atPathInfo[0].ucTurnType = (byte)rtMotorCtrl.rtTurnType.ARRIVE;
-                            Swap(ref atPathInfo[0].tSrc, ref atPathInfo[0].tDest);
+                            atPathInfoForkForth[0].ucStatus = (byte)rtMotorCtrl.rtStatus.STRAIGHT;
+                            atPathInfoForkForth[0].ucTurnType = (byte)rtMotorCtrl.rtTurnType.ARRIVE;
+                            Swap(ref atPathInfoForkForth[0].tSrc, ref atPathInfoForkForth[0].tDest);
                             tAGV_Data.CFork.tForkData.ucStatus = (byte)rtForkCtrl.ForkStatus.RESET_DEPTH;
                         }
                         break;
@@ -817,9 +820,9 @@ namespace rtAGV_Sys
                     case (byte)rtForkCtrl.ForkStatus.BACKWARD:
                         tAGV_Data.CFork.tForkData.bEnable = false;
 #if rtAGV_DEBUG_PRINT
-                        Console.WriteLine(atPathInfo[0].tSrc.eX + "," + atPathInfo[0].tSrc.eY + "---->" + atPathInfo[0].tDest.eX + "," + atPathInfo[0].tDest.eY);
+                        Console.WriteLine(atPathInfoForkForth[0].tSrc.eX + "," + atPathInfoForkForth[0].tSrc.eY + "---->" + atPathInfoForkForth[0].tDest.eX + "," + atPathInfoForkForth[0].tDest.eY);
 #endif
-                        rtAGV_MotorCtrl(ref atPathInfo, true);
+                        rtAGV_MotorCtrl(ref atPathInfoForkForth, true);
 
                         if (tAGV_Data.CMotor.tMotorData.bFinishFlag == true)
                         {
@@ -831,10 +834,9 @@ namespace rtAGV_Sys
                         break;
                     // RESET_HEIGHT
                     case (byte)rtForkCtrl.ForkStatus.RESET_HEIGHT:
-                        tAGV_Data.CFork.tForkData.bEnable = true;
-                        tAGV_Data.CFork.tForkData.height = 0;
+                        tAGV_Data.CFork.tForkData.height = 70;
                         tAGV_Data.CFork.tForkData.distanceDepth = 0;
-
+                        tAGV_Data.CFork.tForkData.bEnable = true;
                         if (ForkActionFinishCheck())
                         {
                             tAGV_Data.CFork.tForkData.bEnable = false;

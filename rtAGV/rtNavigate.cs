@@ -17,7 +17,7 @@ namespace rtAGV_Navigate
         public const int MAX_PATH_NODE_NUMBER = 100;
 
         /** \brief Define: 空資料 */
-        public const int EMPTY_DATA = 9999;
+        public const int EMPTY_DATA = 99999;
 
         public static void rtAGV_PathPlanning(
             rtAGV_MAP a_tMap, rtWarehousingInfo[][] a_atWarehousingInfo, ROI[] a_atRegionCfg, 
@@ -224,20 +224,29 @@ namespace rtAGV_Navigate
 
         public static void Test_FindPathofNode()
         {
-            int[] TableArray = new int[] 
+          /*  int[] TableArray = new int[] 
             {   0, 2, EMPTY_DATA, 1, EMPTY_DATA ,
                 2, 0, 3, 2, EMPTY_DATA ,
                 EMPTY_DATA, 3, 0, EMPTY_DATA, 1 ,
                 EMPTY_DATA, 2, EMPTY_DATA, 0, 1 ,
                 EMPTY_DATA, EMPTY_DATA, 1, 1, 0
+            };*/
+
+            int[] TableArray = new int[] 
+            {   0, 4200, 12280, EMPTY_DATA, EMPTY_DATA ,
+                4200, 0, 8680, EMPTY_DATA, 755 ,
+                12280, 8680, 0, 755, EMPTY_DATA ,
+                EMPTY_DATA, EMPTY_DATA, 755, 0, EMPTY_DATA ,
+                EMPTY_DATA, 755, EMPTY_DATA, EMPTY_DATA, 0
             };
+
             int lNodeNum = 0, lSrc = 0, lDst = 0, lPathLength = 0, lCnt = 0;
             int[] alPathResult = new int[0];
 
             Test_OutputTable("./InitTable.txt", TableArray);
 
             lNodeNum = 5;
-            lSrc = 0;
+            lSrc = 3;
             lDst = 4;
 
             alPathResult = FindPathofNode(lSrc, lDst, TableArray, lNodeNum, ref lPathLength);
@@ -317,6 +326,98 @@ namespace rtAGV_Navigate
             sw.Close();
             fs.Close();
             ////
+        }
+
+        public static void LoadInitTable(string TableFileName, ref int[] TableArray)
+        {
+            //讀取權重檔並寫入陣列
+            string[] lines = System.IO.File.ReadAllLines(TableFileName);
+            int PointsCount = lines.Length;
+            TableArray = new int[PointsCount * PointsCount];
+            int Count = 0;
+            foreach (string line in lines)
+            {
+                string[] EachWeight = line.Split('\t');
+                for (int i = 0; i < EachWeight.Length; i++)
+                {
+                    if (EachWeight[i] == "") continue;
+                    TableArray[Count] = Convert.ToInt32(EachWeight[i]);
+                    Count++;
+                }
+            }
+        }
+
+        public static void CreateWeightingTable(string PointsFileName, string OutTableFileName)
+        {
+            string[] lines = System.IO.File.ReadAllLines(PointsFileName);
+            int PointsCount = lines.Length;
+            int[] TableArray = new int[PointsCount * PointsCount];
+            rtVector[] AllPoint = new rtVector[PointsCount];
+            int Count = 0;
+
+            //從檔案讀取所有座標點資料
+            foreach (string line in lines)
+            {
+                string[] EachPoint = line.Split(',');
+                AllPoint[Count].eX = Convert.ToInt32(EachPoint[0]);
+                AllPoint[Count].eY = Convert.ToInt32(EachPoint[1]);
+                Count++;
+            }
+
+            //計算所有點之間的距離
+            for (int i = 0; i < PointsCount; i++)
+            {
+                for (int j = i; j < PointsCount; j++)
+                {
+                    //自己
+                    if (i == j) TableArray[i * PointsCount + j] = 0;
+                    else
+                    {
+                        int Distance = (int)GetDistance(AllPoint[i], AllPoint[j]);
+                        TableArray[i * PointsCount + j] = Distance;
+                        TableArray[j * PointsCount + i] = Distance;
+                    }
+                }
+            }
+
+            //  文件寫入
+            FileStream fs = new FileStream(OutTableFileName, FileMode.Create);
+            StreamWriter sw = new StreamWriter(fs);
+
+            //  開始寫入
+            // 
+            int lCnt;
+            for (lCnt = 0; lCnt < TableArray.Length; lCnt++)
+            {
+                if (lCnt % PointsCount == PointsCount - 1)
+                {
+                    sw.Write(TableArray[lCnt] + "\n");
+                }
+                else
+                {
+                    sw.Write(TableArray[lCnt] + "\t\t");
+                }
+            }
+
+            //清空暫存
+            sw.Flush();
+
+            //關閉檔案
+            sw.Close();
+            fs.Close();
+            ////
+        }
+
+        public static double GetDistance(rtVector a_tP1, rtVector a_tP2)
+        {
+            double eDistance = 0;
+            double eGapX = 0, eGapY = 0;
+
+            eGapX = a_tP2.eX - a_tP1.eX;
+            eGapY = a_tP2.eY - a_tP1.eY;
+            eDistance = Math.Sqrt(eGapX * eGapX + eGapY * eGapY);
+
+            return eDistance;
         }
     }
 }
