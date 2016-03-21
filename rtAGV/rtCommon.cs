@@ -126,6 +126,18 @@ namespace rtAGV_Common
         public int lIndex;
     }
 
+    public struct WarehousPos
+    {
+        /** \brief region index */
+        public int lRegion;
+
+        /** \brief node index */
+        public int lIndex;
+
+        /** \brief Warehousing Direction: Radius*/
+        public double eDirection;
+    }
+
     public struct rtWarehousingInfo
     {
         /** \brief Node Id: 代表他連結到MAP中哪一個結點 */
