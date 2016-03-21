@@ -146,6 +146,12 @@ namespace PLC_Control
 
         public double Debug_eDeltaCarAngle;
 
+        public double Debug_eErrorCurrent;
+
+        public double Debug_eErrorCurrent_1;
+
+        public double Debug_eErrorCurrent_2;
+
         public void StopCar()
         {
             lMotorPower = 0;
@@ -693,10 +699,12 @@ namespace PLC_Control
                 case (byte)rtStatus.STRAIGHT:
                     // 算出跟終點距離
                     eErrorCurrent = MotorPower_StraightErrorCal(a_atPathInfo, a_tCarData.tPosition, tMotorData.lPathNodeIndex);
+                    tMotorData.Debug_eErrorCurrent_1 = eErrorCurrent;
                     if(tMotorData.lNavigateOffset != 0)
                     {   // 有設定偏差時得做修改 >> 把多餘的部分減掉
                         eErrorCurrent = DistanceModifyForPathOffset(a_atPathInfo[tMotorData.lPathNodeIndex], a_tCarData.tPosition, eErrorCurrent);
                     }
+                    tMotorData.Debug_eErrorCurrent_2 = eErrorCurrent;
                     eDistanceMotor2Dest = rtVectorOP_2D.GetDistance(a_atPathInfo[tMotorData.lPathNodeIndex].tDest, a_tCarData.tMotorPosition);
 
                     // Motor power = function(Error)
@@ -720,6 +728,7 @@ namespace PLC_Control
                             tMotorData.StopCar();
                             a_atPathInfo[tMotorData.lPathNodeIndex].ucStatus = (byte)rtStatus.DONE;
                             tMotorData.bFinishFlag = true;
+                            Console.WriteLine("到達最終目的地 >> 停車");
                         }
                         else
                         { // 趕快進入下一段 (要不要先轉正再說)
@@ -756,6 +765,7 @@ namespace PLC_Control
                                     tMotorData.StopCar();
                                     a_atPathInfo[tMotorData.lPathNodeIndex].ucStatus = (byte)rtStatus.DONE;
                                     tMotorData.bFinishFlag = true;
+                                    Console.WriteLine("ARRIVE");
                                 }
                                 break;
                             default:
@@ -822,7 +832,7 @@ namespace PLC_Control
                     // show error
                     break;
             }
-
+            tMotorData.Debug_eErrorCurrent = eErrorCurrent;
             return eErrorCurrent;
         }
 
@@ -1443,10 +1453,11 @@ namespace PLC_Control
 
             tPathVector.eX = a_atPathInfo[lPathIndex].tDest.eX - a_atPathInfo[lPathIndex].tSrc.eX;
             tPathVector.eY = a_atPathInfo[lPathIndex].tDest.eY - a_atPathInfo[lPathIndex].tSrc.eY;
-            tDestVector = rtVectorOP_2D.Angle2Vector(a_eDestDirection);
+
             eDeltaTmp = rtVectorOP_2D.GetTheta(tPathVector, tDestVector);
             if (Link2DestCheck(a_atPathInfo, lPathIndex) && eDeltaTmp > DELTA_ANGLE_TH)
             {   // need offset
+                tDestVector = rtVectorOP_2D.Angle2Vector(a_eDestDirection);
                 eTmp = rtVectorOP_2D.Cross(tPathVector, tDestVector);
 
                 if (eTmp > 0)

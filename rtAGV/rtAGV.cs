@@ -4,6 +4,7 @@
 
 #define rtAGV_DEBUG_PRINT
 
+//#define HT_Lee_DEBUG
 
 using System;
 
@@ -235,13 +236,20 @@ namespace rtAGV_Sys
 
         public void rtAGV_Navigation(rtWarehousingInfo a_tLocatData, ROI[] a_atObstacle)
         {
+#if HT_Lee_DEBUG
             if (tAGV_Data.atPathInfo.Length <= 0)
-            {   // 沒路徑才計算，之後系統執行完導航都要清掉 path data避免之後動作載道上一次的路徑資料
+            {
+#endif
+                // 沒路徑才計算，之後系統執行完導航都要清掉 path data避免之後動作載道上一次的路徑資料
                 // path planning
                 rtPathPlanning.rtAGV_PathPlanning(
                     tAGV_Cfg.tMapCfg, tAGV_Cfg.atWarehousingCfg, tAGV_Cfg.atRegionCfg,
                     ref tAGV_Data.atPathInfo, ref tAGV_Data.tCarInfo, a_tLocatData, a_atObstacle);
+ #if HT_Lee_DEBUG
             }
+#endif
+                Console.WriteLine("0::"+tAGV_Data.atPathInfo[0].tSrc.eX + "," + tAGV_Data.atPathInfo[0].tSrc.eY + "-->" + tAGV_Data.atPathInfo[0].tDest.eX + "," + tAGV_Data.atPathInfo[0].tDest.eY);
+                Console.WriteLine("1::" + tAGV_Data.atPathInfo[1].tSrc.eX + "," + tAGV_Data.atPathInfo[1].tSrc.eY + "-->" + tAGV_Data.atPathInfo[1].tDest.eX + "," + tAGV_Data.atPathInfo[1].tDest.eY);
         }
 
         public void rtAGV_MotorCtrl(ref rtPath_Info[] a_atPathInfo, double a_eDirection, bool bBackwardEnable)
@@ -305,43 +313,56 @@ namespace rtAGV_Sys
         static void ExtendPathSize(ref rtPath_Info a_tPathInfo, int a_lExtendSize)
         {
             rtVector tDirection = new rtVector();
-
             tDirection = rtVectorOP_2D.GetVector(a_tPathInfo.tSrc, a_tPathInfo.tDest);
             ExtendPointAlongVector(ref a_tPathInfo.tDest, tDirection, a_lExtendSize);
         }
 
         public static void PathModifyForStorage(ref rtPath_Info[] a_atPathInfo, double a_eDestDirection)
         {
-            int lCnt = 0, lLastPathIndex = 0, lCntFix = 0;
-            double eCross = 0, eDeltaTmp = 0;
+            int lCnt = 0, lFinalPathIndex = 0, lCntFix = 0, lLastPathIndex;
+            double eCross = 0, eDeltaTmp = 0, eDeltaTmpLast = 0;
             rtVector tDestVector = new rtVector();
-            rtVector tPathVector = new rtVector();
+            rtVector tPathVectorFinal = new rtVector();
+            rtVector tPathVectorLast = new rtVector();
             rtVector tVlaw = new rtVector();
 
             for (lCnt = 0; lCnt < a_atPathInfo.Length; lCnt++)
             {
                 if (rtMotorCtrl.Link2DestCheck(a_atPathInfo, lCnt))
                 {   // current path link to goods
-                    lLastPathIndex = a_atPathInfo.Length - 1;
-                    tPathVector = rtVectorOP_2D.GetVector(a_atPathInfo[lLastPathIndex].tSrc, a_atPathInfo[lLastPathIndex].tDest);
+                    lFinalPathIndex = a_atPathInfo.Length - 1;
+                    tPathVectorFinal = rtVectorOP_2D.GetVector(a_atPathInfo[lFinalPathIndex].tSrc, a_atPathInfo[lFinalPathIndex].tDest);
                     tDestVector = rtVectorOP_2D.Angle2Vector(a_eDestDirection);
-                    eDeltaTmp = rtVectorOP_2D.GetTheta(tPathVector, tDestVector);
+                    eDeltaTmp = rtVectorOP_2D.GetTheta(tPathVectorFinal, tDestVector);
                     if (eDeltaTmp > rtMotorCtrl.DELTA_ANGLE_TH)
                     {   // need path offset
 
                         // extend path before turn
-                        ExtendPathSize(ref a_atPathInfo[lCnt - 1], rtMotorCtrl.DEFAULT_PATH_OFFSET);
+                        lLastPathIndex = lCnt - 1;
+                        if (lLastPathIndex >= 0)
+                        {   // 如果有前一段就延長
+                            tPathVectorLast = rtVectorOP_2D.GetVector(a_atPathInfo[lLastPathIndex].tSrc, a_atPathInfo[lLastPathIndex].tDest);
+                            eDeltaTmpLast = rtVectorOP_2D.GetTheta(tPathVectorLast, tDestVector);
+                            if (eDeltaTmpLast > rtMotorCtrl.DELTA_ANGLE_TH)
+                            {   // 縮短
+                                ExtendPathSize(ref a_atPathInfo[lLastPathIndex], -(rtMotorCtrl.DEFAULT_PATH_OFFSET));
+                            }
+                            else
+                            {   // 延長
+                                ExtendPathSize(ref a_atPathInfo[lLastPathIndex], rtMotorCtrl.DEFAULT_PATH_OFFSET);
+                            }
+                        }
 
-                        eCross = rtVectorOP_2D.Cross(tPathVector, tDestVector);
+                        eCross = rtVectorOP_2D.Cross(tPathVectorFinal, tDestVector);
                         if(eCross < 0)
                         {   // 物品在路徑向量右側 >> 取右側的法向量
-                            tVlaw.eX = tPathVector.eY;
-                            tVlaw.eY = -tPathVector.eX;
+                            tVlaw.eX = tPathVectorFinal.eY;
+                            tVlaw.eY = -tPathVectorFinal.eX;
                         }
                         else
                         {   // 物品在路徑向量左側 >> 取左側的法向量
-                            tVlaw.eX = -tPathVector.eY;
-                            tVlaw.eY = tPathVector.eX;
+                            tVlaw.eX = -tPathVectorFinal.eY;
+                            tVlaw.eY = tPathVectorFinal.eX;
                         }
 
                         // modify all path linked to dest of goods

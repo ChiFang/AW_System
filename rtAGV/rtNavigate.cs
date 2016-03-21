@@ -30,6 +30,8 @@ namespace rtAGV_Navigate
             int[] alPathofRegion = new int[0];
 
             tNodeId = FindPathofRegion();
+          /*  tNodeId.lRegion = 0;
+            tNodeId.lIndex = 0;*/
 #if rtAGV_NAVIGATE_MULTI_REGION
             if (a_tDestData.tNodeId.lRegion == tNodeId.lRegion)
             {   // different region
@@ -344,6 +346,29 @@ namespace rtAGV_Navigate
                     TableArray[Count] = Convert.ToInt32(EachWeight[i]);
                     Count++;
                 }
+            }
+        }
+
+        public static void LoadAllPoints(string PointsFileName, ref rtVector[] PointsArray)
+        {
+            //讀取節點並寫入陣列
+            string[] lines = System.IO.File.ReadAllLines(PointsFileName);
+            int PointsCount = lines.Length;
+            PointsArray = new rtVector[PointsCount];
+            int Count = 0;
+            foreach (string line in lines)
+            {
+                string[] EachPoint = line.Split(',');
+                for (int i = 0; i < EachPoint.Length; i++)
+                {
+                    if (EachPoint[i] == "") continue;
+                    if (EachPoint.Length == 2)
+                    {
+                        PointsArray[Count].eX = Convert.ToInt32(EachPoint[0]);
+                        PointsArray[Count].eY = Convert.ToInt32(EachPoint[1]);
+                    }
+                }
+                Count++;
             }
         }
 
