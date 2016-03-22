@@ -4,7 +4,7 @@
 
 #define rtAGV_DEBUG_PRINT
 
-//#define HT_Lee_DEBUG
+#define HT_Lee_DEBUG
 
 using System;
 
@@ -42,11 +42,11 @@ namespace rtAGV_Sys
         /** \brief Goods Infomation of each one >> 貨架設定*/
         public rtWarehousingInfo[][] atWarehousingCfg;
 
-        /** \brief Region Cfg 區域範圍設定*/
-        public ROI[] atRegionCfg;
-
         /** \brief Map 地圖設定 */
         public rtAGV_MAP tMapCfg;
+
+        /** \brief Region Cfg 區域範圍設定*/
+        public ROI[] atRegionCfg;
 
         /** \brief Spec of AGV car 車身規格設定 */
         public rtCarCFG tCarCfg;
@@ -237,7 +237,7 @@ namespace rtAGV_Sys
         public void rtAGV_Navigation(rtWarehousingInfo a_tLocatData, ROI[] a_atObstacle)
         {
 #if HT_Lee_DEBUG
-            if (tAGV_Data.atPathInfo.Length <= 0)
+            if (tAGV_Data.atPathInfo.Length <= 0 || a_atObstacle.Length != 0)
             {
 #endif
                 // 沒路徑才計算，之後系統執行完導航都要清掉 path data避免之後動作載道上一次的路徑資料
@@ -300,21 +300,21 @@ namespace rtAGV_Sys
             eErrorAngle = tAGV_Data.CMotor.MotorAngle_CtrlNavigate(a_atPathInfo, tAGV_Data.tCarInfo);
         }
 
-        static void ExtendPointAlongVector(ref rtVector a_tPoint, rtVector a_tDirection, int a_lExtendSize)
-        {
-            double eT = 0, eSizeVetor = 0;
+        //static void ExtendPointAlongVector(ref rtVector a_tPoint, rtVector a_tDirection, int a_lExtendSize)
+        //{
+        //    double eT = 0, eSizeVetor = 0;
 
-            eSizeVetor = rtVectorOP_2D.GetLength(a_tDirection);
-            eT = a_lExtendSize / eSizeVetor;
-            a_tPoint.eX = a_tPoint.eX + a_tDirection.eX * eT;
-            a_tPoint.eY = a_tPoint.eY + a_tDirection.eY * eT;
-        }
+        //    eSizeVetor = rtVectorOP_2D.GetLength(a_tDirection);
+        //    eT = a_lExtendSize / eSizeVetor;
+        //    a_tPoint.eX = a_tPoint.eX + a_tDirection.eX * eT;
+        //    a_tPoint.eY = a_tPoint.eY + a_tDirection.eY * eT;
+        //}
 
         static void ExtendPathSize(ref rtPath_Info a_tPathInfo, int a_lExtendSize)
         {
             rtVector tDirection = new rtVector();
             tDirection = rtVectorOP_2D.GetVector(a_tPathInfo.tSrc, a_tPathInfo.tDest);
-            ExtendPointAlongVector(ref a_tPathInfo.tDest, tDirection, a_lExtendSize);
+            a_tPathInfo.tDest = rtVectorOP_2D.ExtendPointAlongVector(a_tPathInfo.tDest, tDirection, a_lExtendSize);
         }
 
         public static void PathModifyForStorage(ref rtPath_Info[] a_atPathInfo, double a_eDestDirection)
@@ -368,8 +368,8 @@ namespace rtAGV_Sys
                         // modify all path linked to dest of goods
                         for (lCntFix = lCnt; lCntFix < a_atPathInfo.Length; lCntFix++)
                         {
-                            ExtendPointAlongVector(ref a_atPathInfo[lCntFix].tSrc, tVlaw, rtMotorCtrl.DEFAULT_PATH_OFFSET);
-                            ExtendPointAlongVector(ref a_atPathInfo[lCntFix].tDest, tVlaw, rtMotorCtrl.DEFAULT_PATH_OFFSET);
+                            a_atPathInfo[lCntFix].tSrc = rtVectorOP_2D.ExtendPointAlongVector(a_atPathInfo[lCntFix].tSrc, tVlaw, rtMotorCtrl.DEFAULT_PATH_OFFSET);
+                            a_atPathInfo[lCntFix].tDest = rtVectorOP_2D.ExtendPointAlongVector(a_atPathInfo[lCntFix].tDest, tVlaw, rtMotorCtrl.DEFAULT_PATH_OFFSET);
                         }
                         break;
 

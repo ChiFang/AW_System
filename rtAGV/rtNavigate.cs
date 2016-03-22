@@ -95,13 +95,6 @@ namespace rtAGV_Navigate
             return tNodeId;
         }
 
-        public static int[] FindPathofNode()
-        {
-            int[] alPath = new int[0];
-
-            return alPath;
-        }
-
         static void MergePath(int a_lIndexS2D, int a_lIndexS2C, int a_lIndexC2D, int[] a_alNodeListNum, int a_lNodeNum, ref int[][] a_alNodeListTmp)
         {
             int lCntTmp = 0, lCntNodeList = 0;

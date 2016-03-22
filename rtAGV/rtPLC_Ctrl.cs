@@ -9,7 +9,6 @@
 
 #define rtAGV_BACK_MODE
 
-
 #define rtAGV_PATH_OFFSET
 
 using System;
@@ -188,6 +187,21 @@ namespace PLC_Control
 
     public class rtVectorOP_2D
     {
+        /** \brief 求某一點對某向量延伸一定長度 */
+        public static rtVector ExtendPointAlongVector(rtVector a_tPoint, rtVector a_tDirection, int a_lExtendSize)
+        {
+            double eT = 0, eSizeVetor = 0;
+            rtVector tExtendPoint = new rtVector();
+
+            eSizeVetor = GetLength(a_tDirection);
+            eT = a_lExtendSize / eSizeVetor;
+            tExtendPoint.eX = a_tPoint.eX + a_tDirection.eX * eT;
+            tExtendPoint.eY = a_tPoint.eY + a_tDirection.eY * eT;
+
+            return tExtendPoint;
+        }
+
+        /** \brief 求某向量長度 */
         public static double GetLength(rtVector a_tIn)
         {
             double eOut = 0;
@@ -195,6 +209,7 @@ namespace PLC_Control
             return eOut;
         }
 
+        /** \brief 求某向量內積 */
         public static double Dot(rtVector a_tV1, rtVector a_tV2)
         {
             double eOut = 0;
@@ -203,6 +218,7 @@ namespace PLC_Control
             return eOut;
         }
 
+        /** \brief 求某向量外積 */
         public static double Cross(rtVector a_tV1, rtVector a_tV2)
         {
             double eOut = 0;
@@ -211,6 +227,7 @@ namespace PLC_Control
             return eOut;
         }
 
+        /** \brief 求兩向量的夾角 */
         public static double GetTheta(rtVector a_tV1, rtVector a_tV2)
         {
             double eTheta = 0;
@@ -232,6 +249,7 @@ namespace PLC_Control
             return eT1;
         }
 
+        /** \brief 求兩線段的交點 */
         public static rtVector FindMeetPoint(rtVector a_tSrc1, rtVector a_tV1, rtVector a_tSrc2, rtVector a_tV2)
         {
             rtVector tMeetPoint = new rtVector();
@@ -239,7 +257,7 @@ namespace PLC_Control
 
             eT1 = FindVectorMultipleOfMeetPoint(a_tSrc1, a_tV1, a_tSrc2, a_tV2);
 
-            // 求交點(current point 沿著法向量與路徑的交點)
+            // 求交點(current point 沿著向量與路徑的交點)
             tMeetPoint.eX = a_tSrc1.eX + a_tV1.eX * eT1;
             tMeetPoint.eY = a_tSrc1.eY + a_tV1.eY * eT1;
 
@@ -256,6 +274,7 @@ namespace PLC_Control
             return tMultipleVector;
         }
 
+        /** \brief 求某向量對另一向量的投影 */
         public static rtVector VectorProject(rtVector a_tSrc, rtVector a_tBase)
         {
             rtVector tProjectedVector = new rtVector();
@@ -271,6 +290,7 @@ namespace PLC_Control
             return tProjectedVector;
         }
 
+        /** \brief 求某一點對某中心做旋轉的結果 */
         public static rtVector Rotate(rtVector a_tPoint, rtVector a_tCenter, double a_eTheta)
         {   // 角度單位是徑度 甭轉換
             rtVector tResult = new rtVector();
@@ -306,6 +326,7 @@ namespace PLC_Control
             return eDistance;
         }
 
+        /** \brief 求兩點構成的向量 */
         public static rtVector GetVector(rtVector a_tP_Src, rtVector a_tP_Dest)
         {
             rtVector tVector = new rtVector();
@@ -316,6 +337,7 @@ namespace PLC_Control
             return tVector;
         }
 
+        /** \brief 給角度回傳對應的單位向量 */
         public static rtVector Angle2Vector(double a_eAngle)
         {   // 回傳單位向量
             rtVector tVector = new rtVector();
@@ -326,6 +348,7 @@ namespace PLC_Control
             return tVector;
         }
 
+        /** \brief 給向量回傳對應角度 0~360度 */
         public static double Vector2Angle(rtVector a_tVector)
         {
             double eAngle = 0;
@@ -373,26 +396,22 @@ namespace PLC_Control
             return eAngle;
         }
 
+        /** \brief 求角度差距:  a_tV_Src轉到a_tV_Target 是順時針角度為正 否則為負 */
         public static double GetTheta_Difference(rtVector a_tV_Src, rtVector a_tV_Target)
         {
-            double Theta = 0;
-            double ThetaTmp = 0;
-            rtVector tVectorRotae; // vector after rotate
+            double eTheta = 0, eCross = 0;
+            rtVector tCenter = new rtVector();
 
-            Theta = GetTheta(a_tV_Src, a_tV_Target);
-
-            tVectorRotae.eX = a_tV_Src.eX * Math.Cos(Theta * Math.PI / 180) - Math.Sin(Theta * Math.PI / 180) * a_tV_Src.eY;
-            tVectorRotae.eY = a_tV_Src.eX * Math.Sin(Theta * Math.PI / 180) + Math.Cos(Theta * Math.PI / 180) * a_tV_Src.eY;
-
-            ThetaTmp = GetTheta(tVectorRotae, a_tV_Target);
-
-            if (ThetaTmp < 1)
+            tCenter.Init();
+            eTheta = GetTheta(a_tV_Src, a_tV_Target);
+            eCross = Cross(a_tV_Src, a_tV_Target);
+            if (eCross < 0)
             {
-                return Theta;
+                return -eTheta;
             }
             else
             {
-                return -Theta;
+                return eTheta;
             }
         }
 
@@ -400,9 +419,7 @@ namespace PLC_Control
 
     public class rtMotorCtrl
     {
-        public enum rtNavigateStatus { UNDO = 0, DONE = 1 };
-
-        public enum rtTurnType_Simple { ERROR = 0, TURN_RIGHT = 1, TURN_LEFT = -1 };
+        public enum rtTurnType_Simple { ERROR = 0, CAR_TURN_LEFT = 1, CAR_TURN_RIGHT = -1 };
 
         public enum rtStatus { STRAIGHT = 1, TURN = 2, DONE = 0 };
 
@@ -425,6 +442,12 @@ namespace PLC_Control
 
         /** \brief Define: 馬達(驅動輪胎)在這角度以內以直行計算 */
         public const int ANGLE_TH_MOTION_PREDICT = 5;
+
+        /** \brief Define: 路徑間夾角的最大值限制 */
+        public const int ANGLE_TH_PATH = 80;
+
+        /** \brief Define: 與期望車身角度最大差距限制 */
+        public const int DELTA_CAR_ANGLE_LIMIT = 90;
 
         /** \brief Define: 直行時角度超過這設定要車身校正 */
         public const int ANGLE_TH_NEED_ALIGNMENT = 30;
@@ -837,38 +860,28 @@ namespace PLC_Control
         }
 
 
-        public static double MotorAngle_StraightErrorCal(rtPath_Info[] a_atPathInfo, rtVector a_tPosition, int a_lPathNodeIndex)
+        /** \brief 誤差為點到路徑的距離: 點可順時鐘轉至路徑為正 否則為負 */
+        public static double PathErrorCal_Straight(rtPath_Info a_tPathInfo, rtVector a_tPosition)
         {
-            double eErrorCurrent = 0, eT = 0;
-            double eSrcX, eSrcY, eDestX, eDestY;
-            double eCurrentX, eCurrentY;
-            rtVector tVS2D, tVlaw;
+            double eErrorCurrent = 0, eCross = 0;
+            rtVector tVS2D, tVlaw, tVproject, tVS2C;
 
-            eCurrentX = a_tPosition.eX;
-            eCurrentY = a_tPosition.eY;
-
-            eSrcX = a_atPathInfo[a_lPathNodeIndex].tSrc.eX;
-            eSrcY = a_atPathInfo[a_lPathNodeIndex].tSrc.eY;
-
-            eDestX = a_atPathInfo[a_lPathNodeIndex].tDest.eX;
-            eDestY = a_atPathInfo[a_lPathNodeIndex].tDest.eY;
-
-            tVS2D.eX = eDestX - eSrcX;
-            tVS2D.eY = eDestY - eSrcY;
+            tVS2C = rtVectorOP_2D.GetVector(a_tPathInfo.tSrc, a_tPosition);
+            tVS2D = rtVectorOP_2D.GetVector(a_tPathInfo.tSrc, a_tPathInfo.tDest);
 
             // 取右側的法向量
             tVlaw.eX = tVS2D.eY;
             tVlaw.eY = -tVS2D.eX;
 
-            // 求交點  (current point 沿著法向量與路徑的交點)
-            eT = eSrcX * tVS2D.eY - eSrcY * tVS2D.eX - eCurrentX * tVS2D.eY + eCurrentY * tVS2D.eX;
-            eT /= tVlaw.eX * tVS2D.eY - tVlaw.eY * tVS2D.eX;
+            // 將向量投影到法向量上
+            tVproject = rtVectorOP_2D.VectorProject(tVS2C, tVlaw);
 
-            // 算出目前座標到切線的距離當誤差 distance = (Vx*T)^2 + (Vy*T)^2
-            eErrorCurrent = Math.Sqrt((tVlaw.eX * eT) * (tVlaw.eX * eT) + (tVlaw.eY * eT) * (tVlaw.eY * eT));
+            // 向量長度即為點到路徑的距離
+            eErrorCurrent = rtVectorOP_2D.GetLength(tVproject);
 
-            if (eT > 0)
-            { // left side >> tire need to turn left
+            eCross = rtVectorOP_2D.Cross(tVS2C, tVS2D);
+            if (eCross < 0)
+            {   // 當下座標轉到路徑向量為逆時針 要取負值
                 eErrorCurrent = -eErrorCurrent;
             }
 
@@ -877,43 +890,25 @@ namespace PLC_Control
 
         public static int TurnDirectionCal(rtPath_Info[] a_atPathInfo, int a_lPathNodeIndex)
         {
-            int lPathIndex = 0, lTurnDirection = 0;
+            int lTurnDirection = 0;
             double eAngle = 0, eCross = 0;
-            rtVector tSrc;
-            rtVector tDest;
             rtVector tVd2sCurrent;
             rtVector tVs2dNext;
 
-            lPathIndex = a_lPathNodeIndex;
-
-            // set vector & point current
-            tSrc.eX = a_atPathInfo[lPathIndex].tSrc.eX;
-            tSrc.eY = a_atPathInfo[lPathIndex].tSrc.eY;
-            tDest.eX = a_atPathInfo[lPathIndex].tDest.eX;
-            tDest.eY = a_atPathInfo[lPathIndex].tDest.eY;
-            tVd2sCurrent.eX = tSrc.eX - tDest.eX;
-            tVd2sCurrent.eY = tSrc.eY - tDest.eY;
-
-            // set vector & point next
-            tSrc.eX = a_atPathInfo[lPathIndex + 1].tSrc.eX;
-            tSrc.eY = a_atPathInfo[lPathIndex + 1].tSrc.eY;
-            tDest.eX = a_atPathInfo[lPathIndex + 1].tDest.eX;
-            tDest.eY = a_atPathInfo[lPathIndex + 1].tDest.eY;
-            tVs2dNext.eX = tDest.eX - tSrc.eX;
-            tVs2dNext.eY = tDest.eY - tSrc.eY;
-
+            tVd2sCurrent = rtVectorOP_2D.GetVector(a_atPathInfo[a_lPathNodeIndex].tDest, a_atPathInfo[a_lPathNodeIndex].tSrc);
+            tVs2dNext = rtVectorOP_2D.GetVector(a_atPathInfo[a_lPathNodeIndex+1].tSrc, a_atPathInfo[a_lPathNodeIndex+1].tDest);
             eAngle = rtVectorOP_2D.GetTheta(tVd2sCurrent, tVs2dNext);
             eCross = rtVectorOP_2D.Cross(tVd2sCurrent, tVs2dNext);
 
-            if (eAngle > 80)
+            if (eAngle > ANGLE_TH_PATH)
             {
                 if (eCross > 0)
-                {   // 點在右邊 >> 馬達向左轉
-                    lTurnDirection = (int)rtTurnType_Simple.TURN_LEFT;
+                {   // 點在右邊 >> 車子需要向右轉(不管正走或反走)
+                    lTurnDirection = (int)rtTurnType_Simple.CAR_TURN_RIGHT;
                 }
                 else
-                {   // 點在左邊 >> 馬達向右轉
-                    lTurnDirection = (int)rtTurnType_Simple.TURN_RIGHT;
+                {   // 點在左邊 >> 車子需要向左轉(不管正走或反走)
+                    lTurnDirection = (int)rtTurnType_Simple.CAR_TURN_LEFT;
                 }
             }
             else
@@ -927,159 +922,88 @@ namespace PLC_Control
         public static void RotationCenterAndRadiusCal(rtPath_Info[] a_atPathInfo, int a_lRotationDistance, ref rtMotor_Data a_tMotorData)
         {
             int lPathIndex = 0;
-            double eT = 0; // 比例
-            double eLength = 0;
-            rtVector tSrc;
-            rtVector tDest;
-            rtVector tVd2sCurrent;
-            rtVector tVs2dNext;
-            rtVector tVd2sCurrentLaw;
-            rtVector tVs2dNextLaw;
-            rtVector tCurrent;
-            rtVector tNext;
+            rtVector tVd2sCurrent, tVs2dNext, tVd2sCurrentLaw, tVs2dNextLaw, tTurnStart, tTurnEnd;
 
             lPathIndex = a_tMotorData.lPathNodeIndex;
 
-            // set vector & point current
-            tSrc.eX = a_atPathInfo[lPathIndex].tSrc.eX;
-            tSrc.eY = a_atPathInfo[lPathIndex].tSrc.eY;
-            tDest.eX = a_atPathInfo[lPathIndex].tDest.eX;
-            tDest.eY = a_atPathInfo[lPathIndex].tDest.eY;
-            tVd2sCurrent.eX = tSrc.eX - tDest.eX;
-            tVd2sCurrent.eY = tSrc.eY - tDest.eY;
+            // set current vector
+            tVd2sCurrent = rtVectorOP_2D.GetVector(a_atPathInfo[lPathIndex].tDest, a_atPathInfo[lPathIndex].tSrc);
 
             // 取右側法向量
             tVd2sCurrentLaw.eX = tVd2sCurrent.eY;
             tVd2sCurrentLaw.eY = -tVd2sCurrent.eX;
 
             // 取轉彎起始點
-            eLength = rtVectorOP_2D.GetLength(tVd2sCurrent);
-            eT = a_lRotationDistance / eLength;
-            tCurrent.eX = tDest.eX + eT * tVd2sCurrent.eX;
-            tCurrent.eY = tDest.eY + eT * tVd2sCurrent.eY;
+            tTurnStart = rtVectorOP_2D.ExtendPointAlongVector(a_atPathInfo[lPathIndex].tDest, tVd2sCurrent, a_lRotationDistance);
 
-            // set vector & point next
-            tSrc.eX = a_atPathInfo[lPathIndex + 1].tSrc.eX;
-            tSrc.eY = a_atPathInfo[lPathIndex + 1].tSrc.eY;
-            tDest.eX = a_atPathInfo[lPathIndex + 1].tDest.eX;
-            tDest.eY = a_atPathInfo[lPathIndex + 1].tDest.eY;
-            tVs2dNext.eX = tDest.eX - tSrc.eX;
-            tVs2dNext.eY = tDest.eY - tSrc.eY;
+            // set next vector
+            tVs2dNext = rtVectorOP_2D.GetVector(a_atPathInfo[lPathIndex + 1].tSrc, a_atPathInfo[lPathIndex + 1].tDest);
 
             // 取右側法向量
             tVs2dNextLaw.eX = tVs2dNext.eY;
             tVs2dNextLaw.eY = -tVs2dNext.eX;
 
             // 取轉彎結束點
-            eLength = rtVectorOP_2D.GetLength(tVs2dNext);
-            eT = a_lRotationDistance / eLength;
-            tNext.eX = tSrc.eX + eT * tVs2dNext.eX;
-            tNext.eY = tSrc.eY + eT * tVs2dNext.eY;
+            tTurnEnd = rtVectorOP_2D.ExtendPointAlongVector(a_atPathInfo[lPathIndex + 1].tSrc, tVs2dNext, a_lRotationDistance);
 
             // 取兩條線交點當旋轉中心座標
-            eT = tNext.eX * tVs2dNextLaw.eY - tNext.eY * tVs2dNextLaw.eX - tCurrent.eX * tVs2dNextLaw.eY + tCurrent.eY * tVs2dNextLaw.eX;
-            eT /= tVd2sCurrentLaw.eX * tVs2dNextLaw.eY - tVd2sCurrentLaw.eY * tVs2dNextLaw.eX;
-            a_tMotorData.tTurnCenter.eX = tCurrent.eX + eT * tVd2sCurrentLaw.eX;
-            a_tMotorData.tTurnCenter.eY = tCurrent.eY + eT * tVd2sCurrentLaw.eY;
+            a_tMotorData.tTurnCenter = rtVectorOP_2D.FindMeetPoint(tTurnStart, tVd2sCurrentLaw, tTurnEnd, tVs2dNextLaw);
 
             // 計算旋轉半徑 (轉彎路徑用)
-            a_tMotorData.lTurnRadius = (int)Math.Round(rtVectorOP_2D.GetDistance(tCurrent, a_tMotorData.tTurnCenter));
+            a_tMotorData.lTurnRadius = (int)Math.Round(rtVectorOP_2D.GetDistance(tTurnStart, a_tMotorData.tTurnCenter));
         }
 
-        public static bool FinishSmoothTurnCheck(int a_lPathIndex, int a_lRotationDistance,
-            rtPath_Info[] a_atPathInfo, rtVector a_tCarPostition, rtVector a_tRotateCenter
-            )
+        public static bool FinishSmoothTurnCheck(
+            int a_lPathIndex, int a_lRotationDistance,
+            rtPath_Info[] a_atPathInfo, rtVector a_tCarPostition, rtVector a_tRotateCenter)
         {
-            double eT = 0; // 比例
-            double eLength = 0;
-            double eThetaBoundaty = 0;
-            double eThetaCurrent = 0;
-            rtVector tSrc;
-            rtVector tDest;
-            rtVector tVd2sCurrent;
-            rtVector tVs2dNext;
-            rtVector tVd2sCurrentLaw;
-            rtVector tVs2dNextLaw;
-            rtVector tCurrent;
-            rtVector tNext;
-            rtVector tCenter2SrcTurn;
-            rtVector tCenter2DestTurn;
-            rtVector tCenter2Current;
+            bool bResult = false;
+            double eThetaBoundaty = 0, eThetaCurrent = 0;
+            rtVector tTurnStart, tTurnEnd, tVd2sCurrent, tVs2dNext;
+            rtVector tCenter2SrcTurn, tCenter2DestTurn, tCenter2Current;
 
-            // set vector & point current
-            tSrc.eX = a_atPathInfo[a_lPathIndex].tSrc.eX;
-            tSrc.eY = a_atPathInfo[a_lPathIndex].tSrc.eY;
-            tDest.eX = a_atPathInfo[a_lPathIndex].tDest.eX;
-            tDest.eY = a_atPathInfo[a_lPathIndex].tDest.eY;
-            tVd2sCurrent.eX = tSrc.eX - tDest.eX;
-            tVd2sCurrent.eY = tSrc.eY - tDest.eY;
-
-            // 取右側法向量
-            tVd2sCurrentLaw.eX = tVd2sCurrent.eY;
-            tVd2sCurrentLaw.eY = -tVd2sCurrent.eX;
+            // set current vector
+            tVd2sCurrent = rtVectorOP_2D.GetVector(a_atPathInfo[a_lPathIndex].tDest, a_atPathInfo[a_lPathIndex].tSrc);
 
             // 取轉彎起始點
-            eLength = rtVectorOP_2D.GetLength(tVd2sCurrent);
-            eT = a_lRotationDistance / eLength;
-            tCurrent.eX = tDest.eX + eT * tVd2sCurrent.eX;
-            tCurrent.eY = tDest.eY + eT * tVd2sCurrent.eY;
+            tTurnStart = rtVectorOP_2D.ExtendPointAlongVector(a_atPathInfo[a_lPathIndex].tDest, tVd2sCurrent, a_lRotationDistance);
 
-            // set vector & point next
-            tSrc.eX = a_atPathInfo[a_lPathIndex + 1].tSrc.eX;
-            tSrc.eY = a_atPathInfo[a_lPathIndex + 1].tSrc.eY;
-            tDest.eX = a_atPathInfo[a_lPathIndex + 1].tDest.eX;
-            tDest.eY = a_atPathInfo[a_lPathIndex + 1].tDest.eY;
-            tVs2dNext.eX = tDest.eX - tSrc.eX;
-            tVs2dNext.eY = tDest.eY - tSrc.eY;
-
-            // 取右側法向量
-            tVs2dNextLaw.eX = tVs2dNext.eY;
-            tVs2dNextLaw.eY = -tVs2dNext.eX;
+            // set next vector
+            tVs2dNext = rtVectorOP_2D.GetVector(a_atPathInfo[a_lPathIndex + 1].tSrc, a_atPathInfo[a_lPathIndex + 1].tDest);
 
             // 取轉彎結束點
-            eLength = rtVectorOP_2D.GetLength(tVs2dNext);
-            eT = a_lRotationDistance / eLength;
-            tNext.eX = tSrc.eX + eT * tVs2dNext.eX;
-            tNext.eY = tSrc.eY + eT * tVs2dNext.eY;
+            tTurnEnd = rtVectorOP_2D.ExtendPointAlongVector(a_atPathInfo[a_lPathIndex + 1].tSrc, tVs2dNext, a_lRotationDistance);
 
             // 以下計算是否超出扇形區域
-            tCenter2SrcTurn.eX = tCurrent.eX - a_tRotateCenter.eX;
-            tCenter2SrcTurn.eY = tCurrent.eY - a_tRotateCenter.eY;
-            tCenter2DestTurn.eX = tNext.eX - a_tRotateCenter.eX;
-            tCenter2DestTurn.eY = tNext.eY - a_tRotateCenter.eY;
-            tCenter2Current.eX = a_tCarPostition.eX - a_tRotateCenter.eX;
-            tCenter2Current.eY = a_tCarPostition.eY - a_tRotateCenter.eY;
-
+            tCenter2SrcTurn = rtVectorOP_2D.GetVector(a_tRotateCenter, tTurnStart);
+            tCenter2DestTurn = rtVectorOP_2D.GetVector(a_tRotateCenter, tTurnEnd);
+            tCenter2Current = rtVectorOP_2D.GetVector(a_tRotateCenter, a_tCarPostition);
             eThetaBoundaty = rtVectorOP_2D.GetTheta(tCenter2DestTurn, tCenter2SrcTurn);
             eThetaCurrent = rtVectorOP_2D.GetTheta(tCenter2Current, tCenter2SrcTurn);
 
-            if (eThetaCurrent > eThetaBoundaty)
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-
+            bResult = (eThetaCurrent > eThetaBoundaty) ? true : false;
+            return bResult;
         }
 
         public static double MotorAngle_TurnErrorCal(
             rtPath_Info a_tPathInfo, rtVector a_tPosition,
             rtVector a_tTurnCenter, int a_lTurnRadius, int a_lTurnDirection)
         {
-            double eErrorCurrent = 0;
-            double eDistance = 0;
+            double eErrorCurrent = 0, eDistance = 0;
 
             if(a_tPathInfo.ucTurnType == (byte)rtTurnType.SMOOTH)
             {
                 eDistance = rtVectorOP_2D.GetDistance(a_tPosition, a_tTurnCenter);
                 eErrorCurrent = eDistance - a_lTurnRadius; // 可能會有錯誤 如果在內側非扇型區域 >> TBD
             }
+            else
+            {
+                return 0;
+            }
 
             switch (a_lTurnDirection)
             {
-                case (int)rtTurnType_Simple.TURN_LEFT:
+                case (int)rtTurnType_Simple.CAR_TURN_RIGHT:
                     // inverse
                     eErrorCurrent = -eErrorCurrent;
                     break;
@@ -1091,17 +1015,47 @@ namespace PLC_Control
             return eErrorCurrent;
         }
 
-        public static double CarCenterSpeedCal(rtCarData a_tCarData, double a_eMotorAngle)
+        public static double PathErrorCal_Turn(
+            rtPath_Info a_tPathInfo, rtVector a_tPosition,
+            rtVector a_tTurnCenter, int a_lTurnRadius)
         {
-            double eSpeed = 0;
-            double eTheta = 0, eT = 0;
+            double eErrorCurrent = 0, eDistance = 0, eCross = 0;
+            rtVector tVs2d = new rtVector();
+            rtVector tVs2center = new rtVector();
+
+            tVs2d = rtVectorOP_2D.GetVector(a_tPathInfo.tSrc, a_tPathInfo.tDest);
+            tVs2center = rtVectorOP_2D.GetVector(a_tPathInfo.tSrc, a_tTurnCenter);
+            eCross = rtVectorOP_2D.Cross(tVs2center, tVs2d);
+            eDistance = rtVectorOP_2D.GetDistance(a_tPosition, a_tTurnCenter);
+
+            if (a_tPathInfo.ucTurnType == (byte)rtTurnType.SMOOTH)
+            {
+                if(eCross < 0)
+                {   // 向左轉 >> 正的部分圓弧路徑外側
+                    eErrorCurrent = eDistance - a_lTurnRadius;
+                }
+                else
+                {   // 向右轉 >> 正的部分圓弧路徑內側
+                    eErrorCurrent = a_lTurnRadius - eDistance;
+                }
+            }
+            else
+            {
+                return 0;
+            }
+            return eErrorCurrent;
+        }
+
+        public static double CarCenterSpeedCal(rtCarData a_tCarData)
+        {
+            double eSpeed = 0, eTheta = 0, eT = 0;
             double eLength_C2M = 0; // 兩輪中心到後馬達的距離 
             double eLength_C2O = 0; // 兩輪中心到旋轉中心的距離 = 旋轉半徑
             double eLength_R2O = 0; // 右輪中心到旋轉中心的距離 
             double eLength_L2O = 0; // 右輪中心到旋轉中心的距離
             rtVector tV_Car, tVlaw, tRotateCenter;
 
-            eTheta = Math.Abs(a_eMotorAngle);
+            eTheta = Math.Abs(a_tCarData.eWheelAngle);
             eLength_C2M = rtVectorOP_2D.GetDistance(a_tCarData.tPosition, a_tCarData.tMotorPosition);
             eLength_C2O = Math.Tan((90 - eTheta) * Math.PI / 180) * eLength_C2M;
 
@@ -1113,7 +1067,7 @@ namespace PLC_Control
             tVlaw.eY = -tV_Car.eX;
 
             eT = Math.Sqrt(eLength_C2O * eLength_C2O / (tVlaw.eX * tVlaw.eX + tVlaw.eY * tVlaw.eY));
-            if (a_eMotorAngle >= 0)
+            if (a_tCarData.eWheelAngle >= 0)
             {
                 eT = -eT;
             }
@@ -1126,7 +1080,7 @@ namespace PLC_Control
 
             if (eTheta > ANGLE_TH_MOTION_PREDICT)
             {
-                if (a_eMotorAngle < 0)
+                if (a_tCarData.eWheelAngle < 0)
                 { // 車子往右轉 輪子角度為負
                     eSpeed = Math.Abs(a_tCarData.eCarTireSpeedLeft) * eLength_C2O / eLength_L2O;
                 }
@@ -1147,10 +1101,8 @@ namespace PLC_Control
         {
             a_eCarAngle = 0;
             a_tCarCoordinate = new rtVector();
-
             a_tCarCoordinate = Coordinate_Predict(a_tCarData.tPosition, a_tCarData, a_CMotorInfo, a_eDeltaTime);
             a_eCarAngle = a_tCarData.eAngle + a_CMotorInfo.tMotorData.eDeltaAngle;
-
         }
 
         public static rtVector Coordinate_Predict(rtVector a_CurrentPos, rtCarData a_tCarData, rtMotorCtrl a_CMotorInfo, double a_eDeltaTime)
@@ -1162,7 +1114,6 @@ namespace PLC_Control
             double eLength_L2O = 0; // 右輪中心到旋轉中心的距離
             rtVector tNextPosition = new rtVector();
             rtVector tV_Car, tVlaw, tRotateCenter;
-
 
             eAngle = a_tCarData.eAngle;
             tV_Car.eX = Math.Cos(eAngle * Math.PI / 180);
@@ -1202,7 +1153,6 @@ namespace PLC_Control
                 { // 往左轉
                     eSpeed = Math.Abs(a_tCarData.eCarTireSpeedRight) * eLength_C2O / eLength_R2O;
                 }
-
 
                 eDistance = eSpeed * a_eDeltaTime; // distance = V x T = 所旋轉的弧長
 
@@ -1250,18 +1200,15 @@ namespace PLC_Control
             double eTargetAngle = 0, eLengthM2C = 0, eTanTheta = 0;
 
             eLengthM2C = rtVectorOP_2D.GetDistance(a_tCarData.tMotorPosition, a_tCarData.tPosition);
-
             eTanTheta = a_lTurnRadius / eLengthM2C;
-
             eTargetAngle = Math.Atan(eTanTheta);
-
             eTargetAngle = 90 - (eTargetAngle * 180 / Math.PI);
 
             return eTargetAngle;
         }
 
         public static double DeltaAngleCal(double a_eInputAngle, double a_eTargetAngle)
-        {   // 在a_eTargetAngle 右邊為正 左邊為負
+        {   // 在a_eTargetAngle 右邊為正 左邊為負 (-180 ~ +180)
             double eDeltaAngle = 0;
 
             eDeltaAngle = a_eTargetAngle - a_eInputAngle;
@@ -1280,12 +1227,11 @@ namespace PLC_Control
         }
 
         public static double AngleDifferenceCal(rtVector a_tTargetVector, double a_eCarAngle)
-        {
-            double eAngleDiff = 0;
-            double eTargetAngle = 0;
+        {   // 回傳 -180 ~ +180
+            double eAngleDiff = 0, eTargetAngle = 0;
 
             eTargetAngle = rtVectorOP_2D.Vector2Angle(a_tTargetVector);
-            eAngleDiff = DeltaAngleCal(a_eCarAngle, eTargetAngle);
+            eAngleDiff = DeltaAngleCal(a_eCarAngle, eTargetAngle);  // 回傳 -180 ~ +180
 
             return eAngleDiff;
         }
@@ -1335,8 +1281,7 @@ namespace PLC_Control
                     else
                     {
                         tMotorData.lMotorPower = MIN_POWER;
-                    }
-                        
+                    }   
                 }
                 else
                 {
@@ -1370,11 +1315,9 @@ namespace PLC_Control
 
         public static double MotorAngleCal(double a_eDeltaCarAngle, double a_eCarSpeed, rtPID_Coefficient a_tPID_MotorAngleCoe)
         {   // 目前不考慮 車速的因素
-            double eDeltaCarAngleLimtH = 90;   // 之後弄成define
-
             double MotorAngle = 0;
 
-            if (a_eDeltaCarAngle > eDeltaCarAngleLimtH)
+            if (a_eDeltaCarAngle > DELTA_CAR_ANGLE_LIMIT)
             {   // 超過角度限制 最多轉70度
                 MotorAngle = (a_eDeltaCarAngle > 0) ? MAX_ANGLE_OFFSET_MOTOR : -MAX_ANGLE_OFFSET_MOTOR;
             }
@@ -1387,47 +1330,35 @@ namespace PLC_Control
 
         public static double TargetAngleOffsetModify(double a_eDistanceEroor, double a_eCenterSpeed, double a_eTargetAngleOffset)
         {
-            double eAbsDistanceEroor = 0;
-            double eLength = 0;
-            double eLengthModify = 0;
-            double eAbsTargetAngleOffset = 0;
-            double eModifiedAngleOffset = 0;
+            double eAbsDistanceEroor = 0, eLength = 0, eLengthModify = 0, eAbsTargetAngleOffset = 0, eModifiedAngleOffset = 0;
 
-            if (Math.Abs(a_eCenterSpeed) < BASE_SPEED)
-            {   // 比基礎速度小 不用改
+            if (Math.Abs(a_eCenterSpeed) < BASE_SPEED || a_eCenterSpeed==0)
+            {   // 比基礎速度小 or 車速為0 >> 不用改
                 return a_eTargetAngleOffset;
             }
 
             eAbsDistanceEroor = Math.Abs(a_eDistanceEroor);
             eAbsTargetAngleOffset = Math.Abs(a_eTargetAngleOffset);
 
-            if (eAbsTargetAngleOffset < ANGLE_MATCH_TH)
-            {   // 角度太小就不修正 避免三角函數算錯
-                eModifiedAngleOffset = a_eTargetAngleOffset;
-                return eModifiedAngleOffset;
+            if (eAbsTargetAngleOffset < ANGLE_MATCH_TH || eAbsDistanceEroor==0)
+            {   // 1. 角度太小就不修正 避免三角函數算錯 2. eAbsDistanceEroor = 0 也不修正 >>　浪費時間
+                return a_eTargetAngleOffset;
             }
-            else
-            {
-                eLength = eAbsDistanceEroor / (Math.Sin(eAbsTargetAngleOffset * Math.PI / 180));
-            }
-            
+            eLength = eAbsDistanceEroor / (Math.Sin(eAbsTargetAngleOffset * Math.PI / 180));
             eLengthModify = Math.Abs(a_eCenterSpeed) / BASE_SPEED * eLength;
 
 #if rtAGV_DEBUG_PRINT
             Console.WriteLine("eLength:" + eLength.ToString());
             Console.WriteLine("eLengthModify:" + eLengthModify.ToString());
 #endif
-            eModifiedAngleOffset = (eLengthModify != 0) ? Math.Asin(eAbsDistanceEroor / eLengthModify) : 0;
 
             if (eLengthModify == 0)
             {   // 速度 = 0 就不更改
-                eModifiedAngleOffset = a_eTargetAngleOffset;
+                return a_eTargetAngleOffset;
             }
-            else
-            {
-                eModifiedAngleOffset = eModifiedAngleOffset * 180 / Math.PI;
-                eModifiedAngleOffset = (a_eTargetAngleOffset < 0) ? -eModifiedAngleOffset : eModifiedAngleOffset;
-            }
+            eModifiedAngleOffset = Math.Asin(eAbsDistanceEroor / eLengthModify);
+            eModifiedAngleOffset = eModifiedAngleOffset * 180 / Math.PI;
+            eModifiedAngleOffset = (a_eTargetAngleOffset < 0) ? -eModifiedAngleOffset : eModifiedAngleOffset;
 
             return eModifiedAngleOffset;
         }
@@ -1453,11 +1384,10 @@ namespace PLC_Control
 
             tPathVector.eX = a_atPathInfo[lPathIndex].tDest.eX - a_atPathInfo[lPathIndex].tSrc.eX;
             tPathVector.eY = a_atPathInfo[lPathIndex].tDest.eY - a_atPathInfo[lPathIndex].tSrc.eY;
-
+            tDestVector = rtVectorOP_2D.Angle2Vector(a_eDestDirection);
             eDeltaTmp = rtVectorOP_2D.GetTheta(tPathVector, tDestVector);
             if (Link2DestCheck(a_atPathInfo, lPathIndex) && eDeltaTmp > DELTA_ANGLE_TH)
             {   // need offset
-                tDestVector = rtVectorOP_2D.Angle2Vector(a_eDestDirection);
                 eTmp = rtVectorOP_2D.Cross(tPathVector, tDestVector);
 
                 if (eTmp > 0)
@@ -1478,10 +1408,8 @@ namespace PLC_Control
 
         public double MotorAngle_CtrlNavigate(rtPath_Info[] a_atPathInfo, rtCarData a_tCarData)
         {
-            double eDistance = 0, eThetaError;
-            double eCarCenterSpeed = 0;
+            double eDistance = 0, eThetaError, eCarCenterSpeed = 0;
             double eCarAngle = 0, eMotorAngleOffset = 0, eTargetCarAngleOffset = 0, eDeltaCarAngle = 0, eMototAngleTmp = 0;
-            
             byte ucSinpleModeFlag = 0; // 0: OFF 1: ON
             int lPathIndex = 0;
             rtVector tPathVector = new rtVector();
@@ -1489,28 +1417,25 @@ namespace PLC_Control
             rtVector tVector = new rtVector();
             rtVector tPostionFotErrorCal = new rtVector();
             
-
             if (tMotorData.bBackWard)
-            {   // 倒退走
+            {   // 倒退走 >> 以驅動車輪為路徑偏差基準
                 tPostionFotErrorCal = a_tCarData.tMotorPosition;
             }
             else
-            {
+            {   // 往前走 >> 以兩導輪中心為路徑偏差基準
                 tPostionFotErrorCal = a_tCarData.tPosition;
             }
 
             lPathIndex = tMotorData.lPathNodeIndex;
             eCarAngle = a_tCarData.eAngle;
-
-            tPathVector.eX = a_atPathInfo[lPathIndex].tDest.eX - a_atPathInfo[lPathIndex].tSrc.eX;
-            tPathVector.eY = a_atPathInfo[lPathIndex].tDest.eY - a_atPathInfo[lPathIndex].tSrc.eY;
+            tPathVector = rtVectorOP_2D.GetVector(a_atPathInfo[lPathIndex].tSrc, a_atPathInfo[lPathIndex].tDest);
 
             switch (a_atPathInfo[lPathIndex].ucStatus)
             {
                 // 直走狀態
                 case (byte)rtStatus.STRAIGHT:
                     eMotorAngleOffset = 0;
-                    eDistance = MotorAngle_StraightErrorCal(a_atPathInfo, tPostionFotErrorCal, lPathIndex);
+                    eDistance = PathErrorCal_Straight(a_atPathInfo[lPathIndex], tPostionFotErrorCal);
                     break;
                 // 轉彎狀態
                 case (byte)rtStatus.TURN:
@@ -1566,9 +1491,6 @@ namespace PLC_Control
                     // show error
                     break;
             }
-
-            
-
             tMotorData.lTargetAngle = eMotorAngleOffset;
 
             // 算出車身角度根路徑角度偏差多少 (這裡目前僅為了 LOG)
@@ -1579,7 +1501,6 @@ namespace PLC_Control
                 eThetaError = (eThetaError>0) ? eThetaError-180 : eThetaError+180;
             }
 #endif
-
             tMotorData.Debug_eThetaError = eThetaError;
 
             if (ucSinpleModeFlag == 1)
@@ -1598,14 +1519,13 @@ namespace PLC_Control
                 tMotorData.Debug_TargetAngleOffset1 = eTargetCarAngleOffset;
 
                 // 算出兩輪中心的速度
-                eCarCenterSpeed = CarCenterSpeedCal(a_tCarData, a_tCarData.eWheelAngle);
+                eCarCenterSpeed = CarCenterSpeedCal(a_tCarData);
                 tMotorData.Debug_CenterSpeed = eCarCenterSpeed;
 
 #if rtAGV_DEBUG_OFFSET_MODIFY
                 // 根據車速調整跟路徑的夾角
                 eTargetCarAngleOffset = TargetAngleOffsetModify(eDistance, eCarCenterSpeed, eTargetCarAngleOffset);
 #endif
-
                 tMotorData.Debug_TargetAngleOffset2 = eTargetCarAngleOffset;
 
                 // 算出目標車身角度 (vector format)
@@ -1617,7 +1537,6 @@ namespace PLC_Control
                     tTargetCarVector = rtVectorOP_2D.Rotate(tTargetCarVector, tZeroVector, 180 * Math.PI / 180);
                 }
 #endif
-
                 // 算出目標車身角度與當下車身角度的差距
                 eDeltaCarAngle = AngleDifferenceCal(tTargetCarVector, eCarAngle);
 
@@ -1651,7 +1570,158 @@ namespace PLC_Control
 
             return eDistance;
         }
+
+        
+
+        public rtVector PathVectorDetermine_TurnMode(rtVector a_tPosition, rtVector a_tTurnCenter, int a_lTurnDirection)
+        {
+            rtVector tPathVector = new rtVector();
+            rtVector tVcenter2current = new rtVector();
+
+            tVcenter2current = rtVectorOP_2D.GetVector(a_tTurnCenter, a_tPosition);
+
+            switch (a_lTurnDirection)
+            {
+                case (int)rtTurnType_Simple.CAR_TURN_RIGHT:
+                    // 取右側的法向量 為路徑切線向量
+                    tPathVector.eX = tVcenter2current.eY;
+                    tPathVector.eY = -tVcenter2current.eX;
+                    break;
+                case (int)rtTurnType_Simple.CAR_TURN_LEFT:
+                    // 取左側的法向量 為路徑切線向量
+                    tPathVector.eX = -tVcenter2current.eY;
+                    tPathVector.eY = tVcenter2current.eX;
+                    break;
+                default:
+                    // 錯誤
+                    tPathVector.Init();
+                    break;
+            }
+            return tPathVector;
+        }
+
+        public double MotorAngle_CtrlNavigate_Test(rtPath_Info[] a_atPathInfo, rtCarData a_tCarData)
+        {
+            double eDistance = 0, eThetaError, eCarCenterSpeed = 0;
+            double eCarAngle = 0, eMotorAngleOffset = 0, eTargetCarAngleOffset = 0, eDeltaCarAngle = 0, eMototAngleTmp = 0;
+            int lPathIndex = 0;
+            rtVector tPathVector = new rtVector();
+            rtVector tTargetCarVector = new rtVector();
+            rtVector tPostionFotErrorCal = new rtVector();
+
+            // 倒退走: 以驅動車輪為路徑偏差基準    往前走: 以兩導輪中心為路徑偏差基準
+            tPostionFotErrorCal = (tMotorData.bBackWard) ? a_tCarData.tMotorPosition : a_tCarData.tPosition;
+
+            lPathIndex = tMotorData.lPathNodeIndex;
+            eCarAngle = a_tCarData.eAngle;
+#if rtAGV_BACK_MODE
+            if (tMotorData.bBackWard)
+            {   // 倒退走 >> 在某些情況下 要用車尾方向來計算
+                eCarAngle = (eCarAngle > 180) ? eCarAngle-180 : eCarAngle+180;
+            }
+#endif
+            tPathVector = rtVectorOP_2D.GetVector(a_atPathInfo[lPathIndex].tSrc, a_atPathInfo[lPathIndex].tDest);
+
+            switch (a_atPathInfo[lPathIndex].ucStatus)
+            {
+                // 直走狀態
+                case (byte)rtStatus.STRAIGHT:
+                    eMotorAngleOffset = 0;
+                    eDistance = PathErrorCal_Straight(a_atPathInfo[lPathIndex], tPostionFotErrorCal);
+                    break;
+                // 轉彎狀態
+                case (byte)rtStatus.TURN:
+                    //  算出車子要往左轉還是右轉
+                    tMotorData.lTurnDirection = TurnDirectionCal(a_atPathInfo, tMotorData.lPathNodeIndex);
+
+                    if (a_atPathInfo[lPathIndex].ucTurnType == (byte)rtTurnType.SIMPLE)
+                    {   // 直接打正90度或負90度
+                        tMotorData.lTargetAngle = eMotorAngleOffset = 0;
+                        tMotorData.Debug_eDistance = eDistance = 0;
+                        tMotorData.Debug_eThetaError = eThetaError = 0;
+                        tMotorData.lMotorAngle = ANGLE_ROTATION * tMotorData.lTurnDirection;
+                        if (tMotorData.bBackWard)
+                        {   // 倒退走
+                            tMotorData.lMotorAngle = -tMotorData.lMotorAngle;
+                        }
+                        return eDistance;
+                    }
+                    else
+                    {
+                        eDistance = PathErrorCal_Turn(
+                            a_atPathInfo[lPathIndex], tPostionFotErrorCal, tMotorData.tTurnCenter, tMotorData.lTurnRadius);
+
+                        tPathVector = PathVectorDetermine_TurnMode(tPostionFotErrorCal, tMotorData.tTurnCenter, tMotorData.lTurnDirection);
+
+                        // 用算出的旋轉半徑得知車輪至少要轉幾度 >> 目前僅在正走時才需要 Offset 所以不需考慮反走的種種情況
+                        if (tMotorData.bBackWard == false)
+                        {
+                            eMotorAngleOffset = TargetAngle_Cal(a_tCarData, tMotorData.lTurnRadius);
+                            eMotorAngleOffset = eMotorAngleOffset * tMotorData.lTurnDirection;
+                        }
+                    }
+                    break;
+                default:    // 不應該出現這種case
+                    // show error
+                    break;
+            }
+            tMotorData.lTargetAngle = eMotorAngleOffset;
+
+            // 算出車身角度和路徑角度偏差多少 (這裡目前僅為了 LOG)
+            eThetaError = AngleDifferenceCal(tPathVector, eCarAngle);
+            tMotorData.Debug_eThetaError = eThetaError;
+
+            // 考慮靠左 or 靠右的 offset
+            eDistance += tMotorData.lNavigateOffset;
+            tMotorData.Debug_eDistance = eDistance;   // for test
+
+            // 算出要跟路徑的夾角
+            eTargetCarAngleOffset = PathAngleOffsetCal(eDistance, tMotorCfg.tPID_ThetaOffsetCoe);
+
+            tMotorData.Debug_TargetAngleOffset1 = eTargetCarAngleOffset;
+
+            // 算出兩輪中心的速度 (以考慮正走反走的狀況: 車速的正負號)
+            eCarCenterSpeed = CarCenterSpeedCal(a_tCarData);
+            tMotorData.Debug_CenterSpeed = eCarCenterSpeed;
+
+#if rtAGV_DEBUG_OFFSET_MODIFY
+            // 根據車速調整跟路徑的夾角
+            eTargetCarAngleOffset = TargetAngleOffsetModify(eDistance, eCarCenterSpeed, eTargetCarAngleOffset);
+#endif
+            tMotorData.Debug_TargetAngleOffset2 = eTargetCarAngleOffset;
+
+            // 算出目標車身角度 (vector format)
+            rtVector tZeroVector = new rtVector(0, 0);
+            tTargetCarVector = rtVectorOP_2D.Rotate(tPathVector, tZeroVector, eTargetCarAngleOffset * Math.PI / 180);
+
+            // 算出目標車身角度與當下車身角度的差距
+            eDeltaCarAngle = AngleDifferenceCal(tTargetCarVector, eCarAngle);
+#if rtAGV_BACK_MODE
+            if (tMotorData.bBackWard)
+            {   // 倒退走 >> 同樣角度差距下 正走跟反走 車輪要打的方向相反
+                eDeltaCarAngle = -eDeltaCarAngle;
+            }
+#endif
+            tMotorData.Debug_eDeltaCarAngle = eDeltaCarAngle;
+
+            // 用角度差距算出 適當的車輪馬達轉角
+            eMototAngleTmp = MotorAngleCal(eDeltaCarAngle, 0, tMotorCfg.tPID_MotorAngleCoe);
+
+            // 加上之前的角度 offset
+            eMototAngleTmp = eMototAngleTmp + eMotorAngleOffset;
+
+            tMotorData.lMotorAngle = (int)(Math.Round(eMototAngleTmp));
+
+            // boundary
+            if (Math.Abs(tMotorData.lMotorAngle) > MAX_ANGLE_OFFSET_MOTOR)
+            {
+                tMotorData.lMotorAngle = (tMotorData.lMotorAngle < 0) ? -MAX_ANGLE_OFFSET_MOTOR : MAX_ANGLE_OFFSET_MOTOR;
+            }
+            return eDistance;
+        }
     }
+
+
 
     public struct rtForkCtrl_Data
     {
