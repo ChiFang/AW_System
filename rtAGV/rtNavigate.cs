@@ -29,9 +29,9 @@ namespace rtAGV_Navigate
 
             int[] alPathofRegion = new int[0];
 
-            tNodeId = FindPathofRegion();
-          /*  tNodeId.lRegion = 0;
-            tNodeId.lIndex = 0;*/
+            //搜尋最靠近車體位置的節點
+            tNodeId = rtAGV_FindCurrentNode(a_tMap.atNodeLocal[lRegionIndex], a_tCarInfo);
+
 #if rtAGV_NAVIGATE_MULTI_REGION
             if (a_tDestData.tNodeId.lRegion == tNodeId.lRegion)
             {   // different region
@@ -55,9 +55,19 @@ namespace rtAGV_Navigate
                 a_tMap.atNodeLocal[lRegionIndex], a_tMap.alPathTableLocal[lRegionIndex], lNodeNum, ref lPathLength, ref a_atPathInfo);
         }
 
-        public static NodeId rtAGV_FindCurrentNode()
+        public static NodeId rtAGV_FindCurrentNode(rtAGV_MAP_node[] a_atNodeLocal, rtCarData a_tCarInfo)
         {
             NodeId tNodeId = new NodeId();
+            double MinDistance = EMPTY_DATA;
+            for (int i = 0; i < a_atNodeLocal.Length; i++)
+            {
+                double EachDistance = GetDistance(a_atNodeLocal[i].tCoordinate, a_tCarInfo.tPosition);
+                if (EachDistance <= MinDistance)
+                {
+                    MinDistance = EachDistance;
+                    tNodeId = a_atNodeLocal[i].tNodeId;
+                }
+            }
 
             return tNodeId;
         }
@@ -93,6 +103,13 @@ namespace rtAGV_Navigate
             NodeId tNodeId = new NodeId();
 
             return tNodeId;
+        }
+
+        public static int[] FindPathofNode()
+        {
+            int[] alPath = new int[0];
+
+            return alPath;
         }
 
         static void MergePath(int a_lIndexS2D, int a_lIndexS2C, int a_lIndexC2D, int[] a_alNodeListNum, int a_lNodeNum, ref int[][] a_alNodeListTmp)

@@ -6,12 +6,14 @@
 
 #define HT_Lee_DEBUG
 
+#define ThreadDelay
+
 using System;
 
 using rtAGV_Common;
 using PLC_Control;
 using rtAGV_Navigate;
-
+using System.Threading;
 
 
 namespace rtAGV_Sys
@@ -245,11 +247,18 @@ namespace rtAGV_Sys
                 rtPathPlanning.rtAGV_PathPlanning(
                     tAGV_Cfg.tMapCfg, tAGV_Cfg.atWarehousingCfg, tAGV_Cfg.atRegionCfg,
                     ref tAGV_Data.atPathInfo, ref tAGV_Data.tCarInfo, a_tLocatData, a_atObstacle);
+                PathModifyForStorage(ref tAGV_Data.atPathInfo, a_tLocatData.eDirection);
  #if HT_Lee_DEBUG
             }
 #endif
-                Console.WriteLine("0::"+tAGV_Data.atPathInfo[0].tSrc.eX + "," + tAGV_Data.atPathInfo[0].tSrc.eY + "-->" + tAGV_Data.atPathInfo[0].tDest.eX + "," + tAGV_Data.atPathInfo[0].tDest.eY);
-                Console.WriteLine("1::" + tAGV_Data.atPathInfo[1].tSrc.eX + "," + tAGV_Data.atPathInfo[1].tSrc.eY + "-->" + tAGV_Data.atPathInfo[1].tDest.eX + "," + tAGV_Data.atPathInfo[1].tDest.eY);
+
+#if rtAGV_DEBUG_PRINT
+                /*for (int i = 0; i < tAGV_Data.atPathInfo.Length; i++)
+                {
+                    Console.WriteLine(i+"::" + tAGV_Data.atPathInfo[i].tSrc.eX + "," + tAGV_Data.atPathInfo[i].tSrc.eY + "-->" + tAGV_Data.atPathInfo[i].tDest.eX + "," + tAGV_Data.atPathInfo[i].tDest.eY + "--ucTurnType:" + tAGV_Data.atPathInfo[i].ucTurnType);
+                   // Console.WriteLine("1::" + tAGV_Data.atPathInfo[1].tSrc.eX + "," + tAGV_Data.atPathInfo[1].tSrc.eY + "-->" + tAGV_Data.atPathInfo[1].tDest.eX + "," + tAGV_Data.atPathInfo[1].tDest.eY + "--ucTurnType:" + tAGV_Data.atPathInfo[1].ucTurnType);
+                }*/
+#endif
         }
 
         public void rtAGV_MotorCtrl(ref rtPath_Info[] a_atPathInfo, double a_eDirection, bool bBackwardEnable)
@@ -407,6 +416,9 @@ namespace rtAGV_Sys
             while (tAGV_Data.CMotor.tMotorData.bFinishFlag == false && tAGV_Data.bEmergency == false)
             {
                 AutoNavigate(a_tWarehousPos);
+#if ThreadDelay
+                Thread.Sleep(15);
+#endif
             }
         }
 
@@ -722,7 +734,7 @@ namespace rtAGV_Sys
                 rtAGV_Navigation(LocatData, atObstacle);
 
                 // 修正路徑 >> 在走道中要靠某一邊來騰出旋轉空間
-                PathModifyForStorage(ref tAGV_Data.atPathInfo, LocatData.eDirection);
+                //PathModifyForStorage(ref tAGV_Data.atPathInfo, LocatData.eDirection);
 
                 // 控制馬達
                 rtAGV_MotorCtrl(ref tAGV_Data.atPathInfo, a_tWarehousPos.eDirection, false);                
@@ -841,13 +853,15 @@ namespace rtAGV_Sys
                         {
                             tAGV_Data.CFork.tForkData.bEnable = false;
 #if rtAGV_DEBUG_PRINT
+                            tAGV_Data.atPathInfo = atPathInfoForkForth;
                             //Console.WriteLine("Path: " + atPathInfo[0].tDest.eX + "," + atPathInfo[0].tDest.eY);
 #endif
                             rtAGV_MotorCtrl(ref atPathInfoForkForth, a_tWarehousPos.eDirection, true);  // 前面已轉正過 >>所以設為true
-
+                            
                             if (tAGV_Data.CMotor.tMotorData.bFinishFlag == true)
                             {
                                 // reset
+                                tAGV_Data.atPathInfo = new rtPath_Info[0];
                                 tAGV_Data.CMotor = new rtMotorCtrl();
                                 tAGV_Data.CFork.tForkData.ucStatus = (byte)rtForkCtrl.ForkStatus.SET_DEPTH;
                                 //if (tAGV_Data.ucAGV_Status == (byte)rtAGVStatus.LOAD)
@@ -918,13 +932,15 @@ namespace rtAGV_Sys
                     case (byte)rtForkCtrl.ForkStatus.BACKWARD:
                         tAGV_Data.CFork.tForkData.bEnable = false;
 #if rtAGV_DEBUG_PRINT
-                        Console.WriteLine(atPathInfoForkForth[0].tSrc.eX + "," + atPathInfoForkForth[0].tSrc.eY + "---->" + atPathInfoForkForth[0].tDest.eX + "," + atPathInfoForkForth[0].tDest.eY);
+                        tAGV_Data.atPathInfo = atPathInfoForkForth;
+                        //Console.WriteLine(atPathInfoForkForth[0].tSrc.eX + "," + atPathInfoForkForth[0].tSrc.eY + "---->" + atPathInfoForkForth[0].tDest.eX + "," + atPathInfoForkForth[0].tDest.eY);
 #endif
                         rtAGV_MotorCtrl(ref atPathInfoForkForth, a_tWarehousPos.eDirection, true);
 
                         if (tAGV_Data.CMotor.tMotorData.bFinishFlag == true)
                         {
                             // reset
+                            tAGV_Data.atPathInfo = new rtPath_Info[0];
                             tAGV_Data.CMotor = new rtMotorCtrl();
 
                             tAGV_Data.CFork.tForkData.ucStatus = (byte)rtForkCtrl.ForkStatus.RESET_HEIGHT;

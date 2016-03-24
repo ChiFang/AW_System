@@ -52,7 +52,7 @@ namespace rtAGV_Common
                 atPathInfo[lCnt].tSrc.Init();
                 atPathInfo[lCnt].tDest.Init();
                 atPathInfo[lCnt].ucStatus = 1;
-                atPathInfo[lCnt].ucTurnType = 1;
+                atPathInfo[lCnt].ucTurnType = 0;
             }
             atPathInfo[lCnt].tSrc.Init();
             atPathInfo[lCnt].tDest.Init();

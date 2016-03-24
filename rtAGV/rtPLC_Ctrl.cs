@@ -1406,7 +1406,7 @@ namespace PLC_Control
         }
 
 
-        public double MotorAngle_CtrlNavigate(rtPath_Info[] a_atPathInfo, rtCarData a_tCarData)
+       /* public double MotorAngle_CtrlNavigate(rtPath_Info[] a_atPathInfo, rtCarData a_tCarData)
         {
             double eDistance = 0, eThetaError, eCarCenterSpeed = 0;
             double eCarAngle = 0, eMotorAngleOffset = 0, eTargetCarAngleOffset = 0, eDeltaCarAngle = 0, eMototAngleTmp = 0;
@@ -1571,7 +1571,7 @@ namespace PLC_Control
             return eDistance;
         }
 
-        
+        */
 
         public rtVector PathVectorDetermine_TurnMode(rtVector a_tPosition, rtVector a_tTurnCenter, int a_lTurnDirection)
         {
@@ -1600,7 +1600,7 @@ namespace PLC_Control
             return tPathVector;
         }
 
-        public double MotorAngle_CtrlNavigate_Test(rtPath_Info[] a_atPathInfo, rtCarData a_tCarData)
+        public double MotorAngle_CtrlNavigate(rtPath_Info[] a_atPathInfo, rtCarData a_tCarData)
         {
             double eDistance = 0, eThetaError, eCarCenterSpeed = 0;
             double eCarAngle = 0, eMotorAngleOffset = 0, eTargetCarAngleOffset = 0, eDeltaCarAngle = 0, eMototAngleTmp = 0;
