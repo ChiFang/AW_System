@@ -14,6 +14,10 @@ using rtAGV_Common;
 using PLC_Control;
 using rtAGV_Navigate;
 using System.Threading;
+using System.Net;
+using System.Net.Sockets;
+using System.IO;
+using System.Text;
 
 
 namespace rtAGV_Sys
@@ -244,6 +248,7 @@ namespace rtAGV_Sys
 #endif
                 // 沒路徑才計算，之後系統執行完導航都要清掉 path data避免之後動作載道上一次的路徑資料
                 // path planning
+                Console.WriteLine("NowPosition: " + tAGV_Data.tCarInfo.tPosition.eX + "," + tAGV_Data.tCarInfo.tPosition.eY);
                 rtPathPlanning.rtAGV_PathPlanning(
                     tAGV_Cfg.tMapCfg, tAGV_Cfg.atWarehousingCfg, tAGV_Cfg.atRegionCfg,
                     ref tAGV_Data.atPathInfo, ref tAGV_Data.tCarInfo, a_tLocatData, a_atObstacle);
@@ -253,11 +258,11 @@ namespace rtAGV_Sys
 #endif
 
 #if rtAGV_DEBUG_PRINT
-                /*for (int i = 0; i < tAGV_Data.atPathInfo.Length; i++)
+                for (int i = 0; i < tAGV_Data.atPathInfo.Length; i++)
                 {
                     Console.WriteLine(i+"::" + tAGV_Data.atPathInfo[i].tSrc.eX + "," + tAGV_Data.atPathInfo[i].tSrc.eY + "-->" + tAGV_Data.atPathInfo[i].tDest.eX + "," + tAGV_Data.atPathInfo[i].tDest.eY + "--ucTurnType:" + tAGV_Data.atPathInfo[i].ucTurnType);
                    // Console.WriteLine("1::" + tAGV_Data.atPathInfo[1].tSrc.eX + "," + tAGV_Data.atPathInfo[1].tSrc.eY + "-->" + tAGV_Data.atPathInfo[1].tDest.eX + "," + tAGV_Data.atPathInfo[1].tDest.eY + "--ucTurnType:" + tAGV_Data.atPathInfo[1].ucTurnType);
-                }*/
+                }
 #endif
         }
 
@@ -265,7 +270,6 @@ namespace rtAGV_Sys
         {   // 一定要傳path 因為 path 不一定是agv裡面送貨用的 有可能是 取放貨時前進後退用的
 
             double eErrorPower = 0;
-            double eErrorAngle = 0;
             double eTargetAngle = 0;
             int lPathIndex = 0;
             rtVector tV_S2D = new rtVector();
@@ -306,7 +310,7 @@ namespace rtAGV_Sys
             // tAGV_Data.CMotor.PathOffsetCal(a_atPathInfo, a_eDirection);
 
             // decide Motor Angle
-            eErrorAngle = tAGV_Data.CMotor.MotorAngle_CtrlNavigate(a_atPathInfo, tAGV_Data.tCarInfo);
+            tAGV_Data.CMotor.MotorAngle_CtrlNavigate(a_atPathInfo, tAGV_Data.tCarInfo);
         }
 
         //static void ExtendPointAlongVector(ref rtVector a_tPoint, rtVector a_tDirection, int a_lExtendSize)
@@ -980,6 +984,101 @@ namespace rtAGV_Sys
 	
 	public class rtAGV_communicate
 	{
+        /** \brief 連線到Server的IP */
+        public string ServerIP;
+
+        /** \brief 連線到Server的Port */
+        public int Port;
+
+        /** \brief Sock連線參數 */
+        public Socket sender_TCP;
+
+        /** \brief 接收到的Data buffer */
+        public byte[] Receivebytes = new byte[1024];
+
+        /** \brief 傳送的Data buffer */
+        public byte[] Sendbytes;
+
+        /** \brief 解析到的Command */
+        public ulong ReceiveCommand;
+
+        public bool ConnectToServerFunc()
+        {
+            try
+            {
+                if (ServerIP != "")
+                {
+                    string SendIP = ServerIP;
+                    int port = Port;
+                    sender_TCP = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                    sender_TCP.Connect(SendIP, port);
+                    if (sender_TCP.Connected)
+                    {
+                        return true;
+                    }
+                    else return false;
+                }
+                else return false;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+                return false;
+            }  
+        }
+
+        public bool CRC_CheckReceiveData(byte[] ReceiveData)
+        {
+            //檢查CRC
+            int DataLength = ReceiveData.Length;
+            if (DataLength > 8) return false;
+            byte[] TempArray = new byte[DataLength - 2];
+            Array.Copy(ReceiveData, 0, TempArray, 0, DataLength - 2);
+            byte[] ResultCRC = BitConverter.GetBytes(ModRTU_CRC(TempArray, 6));
+            if (ResultCRC[0] == ReceiveData[6] && ResultCRC[1] == ReceiveData[7]) return true;
+            else return false;
+        }
+
+        UInt16 ModRTU_CRC(byte[] buf, int len)
+        {
+            //計算CRC
+            UInt16 crc = 0xFFFF;
+            for (int pos = 0; pos < len; pos++)
+            {
+                crc ^= (UInt16)buf[pos];          // XOR byte into least sig. byte of crc
+                for (int i = 8; i != 0; i--)
+                {    // Loop over each bit
+                    if ((crc & 0x0001) != 0)
+                    {      // If the LSB is set
+                        crc >>= 1;                    // Shift right and XOR 0xA001
+                        crc ^= 0xA001;
+                    }
+                    else                            // Else LSB is not set
+                        crc >>= 1;                    // Just shift right
+                }
+            }
+            // Note, this number has low and high bytes swapped, so use it accordingly (or swap bytes)
+            return crc;
+        }
+
+        public bool SendData(byte[] SendDataByte)
+        {
+            //傳送給server資料
+            if (sender_TCP.Connected && SendDataByte != null)
+            {
+                try
+                {
+                    int bytesSent = sender_TCP.Send(SendDataByte);
+                    return true;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+            else return false;
+        }
+
         public void ReceiveData()
         {
 

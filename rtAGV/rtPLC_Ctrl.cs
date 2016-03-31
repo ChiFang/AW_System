@@ -133,7 +133,8 @@ namespace PLC_Control
         /** \brief 判斷車子是否已超過該段路徑的終點 */
         public bool bOverDest;
 
-        public double Debug_eDistance;
+        /** \brief 路徑偏差 */
+        public double ePathError;
 
         public double Debug_eThetaError;
 
@@ -178,7 +179,7 @@ namespace PLC_Control
             lTargetAngle = 0;
             eDeltaAngle = 0;
             tPredictRotationCenter.Init();
-            Debug_eDistance = 0;
+            ePathError = 0;
             Debug_eThetaError = 0;
         }
     }
@@ -723,10 +724,10 @@ namespace PLC_Control
                     // 算出跟終點距離
                     eErrorCurrent = MotorPower_StraightErrorCal(a_atPathInfo, a_tCarData.tPosition, tMotorData.lPathNodeIndex);
                     tMotorData.Debug_eErrorCurrent_1 = eErrorCurrent;
-                    if(tMotorData.lNavigateOffset != 0)
-                    {   // 有設定偏差時得做修改 >> 把多餘的部分減掉
-                        eErrorCurrent = DistanceModifyForPathOffset(a_atPathInfo[tMotorData.lPathNodeIndex], a_tCarData.tPosition, eErrorCurrent);
-                    }
+                    
+                    // 只考慮目前座標投影到路徑向量上後的距離 >> 把多餘的部分減掉
+                    eErrorCurrent = DistanceModifyForPathOffset(a_atPathInfo[tMotorData.lPathNodeIndex], a_tCarData.tPosition, eErrorCurrent);
+
                     tMotorData.Debug_eErrorCurrent_2 = eErrorCurrent;
                     eDistanceMotor2Dest = rtVectorOP_2D.GetDistance(a_atPathInfo[tMotorData.lPathNodeIndex].tDest, a_tCarData.tMotorPosition);
 
@@ -1406,7 +1407,7 @@ namespace PLC_Control
         }
 
 
-       /* public double MotorAngle_CtrlNavigate(rtPath_Info[] a_atPathInfo, rtCarData a_tCarData)
+        public double MotorAngle_CtrlNavigate_ODD1(rtPath_Info[] a_atPathInfo, rtCarData a_tCarData)
         {
             double eDistance = 0, eThetaError, eCarCenterSpeed = 0;
             double eCarAngle = 0, eMotorAngleOffset = 0, eTargetCarAngleOffset = 0, eDeltaCarAngle = 0, eMototAngleTmp = 0;
@@ -1511,7 +1512,7 @@ namespace PLC_Control
             {
                 // 考慮靠左 or 靠右的 offset
                 eDistance += tMotorData.lNavigateOffset;
-                tMotorData.Debug_eDistance = eDistance;   // for test
+                tMotorData.ePathError = eDistance;   // for test
 
                 // 算出要跟路徑的夾角
                 eTargetCarAngleOffset = PathAngleOffsetCal(eDistance, tMotorCfg.tPID_ThetaOffsetCoe);
@@ -1571,36 +1572,30 @@ namespace PLC_Control
             return eDistance;
         }
 
-        */
-
         public rtVector PathVectorDetermine_TurnMode(rtVector a_tPosition, rtVector a_tTurnCenter, int a_lTurnDirection)
         {
             rtVector tPathVector = new rtVector();
             rtVector tVcenter2current = new rtVector();
 
             tVcenter2current = rtVectorOP_2D.GetVector(a_tTurnCenter, a_tPosition);
-
             switch (a_lTurnDirection)
             {
-                case (int)rtTurnType_Simple.CAR_TURN_RIGHT:
-                    // 取右側的法向量 為路徑切線向量
+                case (int)rtTurnType_Simple.CAR_TURN_RIGHT: // 取右側的法向量 為路徑切線向量
                     tPathVector.eX = tVcenter2current.eY;
                     tPathVector.eY = -tVcenter2current.eX;
                     break;
-                case (int)rtTurnType_Simple.CAR_TURN_LEFT:
-                    // 取左側的法向量 為路徑切線向量
+                case (int)rtTurnType_Simple.CAR_TURN_LEFT:  // 取左側的法向量 為路徑切線向量
                     tPathVector.eX = -tVcenter2current.eY;
                     tPathVector.eY = tVcenter2current.eX;
                     break;
-                default:
-                    // 錯誤
+                default:    // 錯誤
                     tPathVector.Init();
                     break;
             }
             return tPathVector;
         }
 
-        public double MotorAngle_CtrlNavigate(rtPath_Info[] a_atPathInfo, rtCarData a_tCarData)
+        public double MotorAngle_CtrlNavigate_ODD2(rtPath_Info[] a_atPathInfo, rtCarData a_tCarData)
         {
             double eDistance = 0, eThetaError, eCarCenterSpeed = 0;
             double eCarAngle = 0, eMotorAngleOffset = 0, eTargetCarAngleOffset = 0, eDeltaCarAngle = 0, eMototAngleTmp = 0;
@@ -1637,7 +1632,7 @@ namespace PLC_Control
                     if (a_atPathInfo[lPathIndex].ucTurnType == (byte)rtTurnType.SIMPLE)
                     {   // 直接打正90度或負90度
                         tMotorData.lTargetAngle = eMotorAngleOffset = 0;
-                        tMotorData.Debug_eDistance = eDistance = 0;
+                        tMotorData.ePathError = eDistance = 0;
                         tMotorData.Debug_eThetaError = eThetaError = 0;
                         tMotorData.lMotorAngle = ANGLE_ROTATION * tMotorData.lTurnDirection;
                         if (tMotorData.bBackWard)
@@ -1673,7 +1668,7 @@ namespace PLC_Control
 
             // 考慮靠左 or 靠右的 offset
             eDistance += tMotorData.lNavigateOffset;
-            tMotorData.Debug_eDistance = eDistance;   // for test
+            tMotorData.ePathError = eDistance;   // for test
 
             // 算出要跟路徑的夾角
             eTargetCarAngleOffset = PathAngleOffsetCal(eDistance, tMotorCfg.tPID_ThetaOffsetCoe);
@@ -1691,8 +1686,7 @@ namespace PLC_Control
             tMotorData.Debug_TargetAngleOffset2 = eTargetCarAngleOffset;
 
             // 算出目標車身角度 (vector format)
-            rtVector tZeroVector = new rtVector(0, 0);
-            tTargetCarVector = rtVectorOP_2D.Rotate(tPathVector, tZeroVector, eTargetCarAngleOffset * Math.PI / 180);
+            tTargetCarVector = rtVectorOP_2D.Rotate(tPathVector, new rtVector(0, 0), eTargetCarAngleOffset * Math.PI / 180);
 
             // 算出目標車身角度與當下車身角度的差距
             eDeltaCarAngle = AngleDifferenceCal(tTargetCarVector, eCarAngle);
@@ -1718,6 +1712,128 @@ namespace PLC_Control
                 tMotorData.lMotorAngle = (tMotorData.lMotorAngle < 0) ? -MAX_ANGLE_OFFSET_MOTOR : MAX_ANGLE_OFFSET_MOTOR;
             }
             return eDistance;
+        }
+
+        public void MotorAngle_CtrlNavigate(rtPath_Info[] a_atPathInfo, rtCarData a_tCarData)
+        {
+            double eDistance = 0, eThetaError = 0, eCarAngle = 0, eMotorAngleOffset = 0, eMototAngleTmp = 0;
+            int lPathIndex = 0;
+            rtVector tPathVector = new rtVector();
+            rtVector tPostion = new rtVector();
+
+            // 倒退走: 以驅動車輪為路徑偏差基準    往前走: 以兩導輪中心為路徑偏差基準
+            tPostion = (tMotorData.bBackWard) ? a_tCarData.tMotorPosition : a_tCarData.tPosition;
+
+            lPathIndex = tMotorData.lPathNodeIndex;
+            eCarAngle = a_tCarData.eAngle;
+#if rtAGV_BACK_MODE
+            if (tMotorData.bBackWard)
+            {   // 倒退走 >> 在某些情況下 要用車尾方向來計算
+                eCarAngle = (eCarAngle > 180) ? eCarAngle - 180 : eCarAngle + 180;
+            }
+#endif
+            tPathVector = rtVectorOP_2D.GetVector(a_atPathInfo[lPathIndex].tSrc, a_atPathInfo[lPathIndex].tDest);
+            switch (a_atPathInfo[lPathIndex].ucStatus)
+            {
+                case (byte)rtStatus.STRAIGHT:   // 直走狀態
+                    eDistance = PathErrorCal_Straight(a_atPathInfo[lPathIndex], tPostion);
+                    break;
+                case (byte)rtStatus.TURN:       // 轉彎狀態
+                    //  算出車子要往左轉還是右轉
+                    tMotorData.lTurnDirection = TurnDirectionCal(a_atPathInfo, tMotorData.lPathNodeIndex);
+
+                    if (a_atPathInfo[lPathIndex].ucTurnType == (byte)rtTurnType.SIMPLE)
+                    {   // 直接打正90度或負90度 >> 除了ePathError&lMotorAngle 其他數據不重要 沒影響
+                        tMotorData.ePathError = eDistance = 0;
+                        tMotorData.lMotorAngle = ANGLE_ROTATION * tMotorData.lTurnDirection;
+                        if (tMotorData.bBackWard)
+                        {   // 倒退走
+                            tMotorData.lMotorAngle = -tMotorData.lMotorAngle;
+                        }
+                        return;
+                    }
+                    else
+                    {
+                        eDistance = PathErrorCal_Turn(a_atPathInfo[lPathIndex], tPostion, tMotorData.tTurnCenter, tMotorData.lTurnRadius);
+                        tPathVector = PathVectorDetermine_TurnMode(tPostion, tMotorData.tTurnCenter, tMotorData.lTurnDirection);
+
+                        // 用算出的旋轉半徑得知車輪至少要轉幾度 >> 目前僅在正走時才需要 Offset 所以不需考慮反走的種種情況
+                        if (tMotorData.bBackWard == false)
+                        {
+                            eMotorAngleOffset = TargetAngle_Cal(a_tCarData, tMotorData.lTurnRadius);
+                            eMotorAngleOffset = eMotorAngleOffset * tMotorData.lTurnDirection;
+                        }
+                    }
+                    break;
+                default:    // 不應該出現這種case >> show error
+                    break;
+            }
+            tMotorData.lTargetAngle = eMotorAngleOffset;
+
+            // 算出車身角度和路徑角度偏差多少 (這裡目前僅為了 LOG)
+            eThetaError = AngleDifferenceCal(tPathVector, eCarAngle);
+            tMotorData.Debug_eThetaError = eThetaError;
+
+            // 考慮靠左 or 靠右的 offset
+            tMotorData.ePathError = eDistance + tMotorData.lNavigateOffset;
+
+            eMototAngleTmp = DedtermineMotorAngleByPathError(tPathVector, a_tCarData);
+            tMotorData.lMotorAngle = (int)(Math.Round(eMototAngleTmp));
+
+            // boundary
+            if (Math.Abs(tMotorData.lMotorAngle) > MAX_ANGLE_OFFSET_MOTOR)
+            {
+                tMotorData.lMotorAngle = (tMotorData.lMotorAngle < 0) ? -MAX_ANGLE_OFFSET_MOTOR : MAX_ANGLE_OFFSET_MOTOR;
+            }
+        }
+
+        public double DedtermineMotorAngleByPathError(rtVector a_tPathVector, rtCarData a_tCarData)
+        {
+            double eMototAngle = 0, eTargetCarAngleOffset = 0, eCarCenterSpeed = 0, eDeltaCarAngle = 0, eCarAngle = 0;
+            rtVector tTargetCarVector = new rtVector();
+
+#if rtAGV_BACK_MODE
+            eCarAngle = a_tCarData.eAngle;
+            if (tMotorData.bBackWard)
+            {   // 倒退走 >> 在某些情況下 要用車尾方向來計算
+                eCarAngle = (eCarAngle > 180) ? eCarAngle - 180 : eCarAngle + 180;
+            }
+#endif
+            // 算出要跟路徑的夾角
+            eTargetCarAngleOffset = PathAngleOffsetCal(tMotorData.ePathError, tMotorCfg.tPID_ThetaOffsetCoe);
+
+            tMotorData.Debug_TargetAngleOffset1 = eTargetCarAngleOffset;
+
+            // 算出兩輪中心的速度 (以考慮正走反走的狀況: 車速的正負號)
+            eCarCenterSpeed = CarCenterSpeedCal(a_tCarData);
+            tMotorData.Debug_CenterSpeed = eCarCenterSpeed;
+
+#if rtAGV_DEBUG_OFFSET_MODIFY
+            // 根據車速調整跟路徑的夾角
+            eTargetCarAngleOffset = TargetAngleOffsetModify(tMotorData.ePathError, eCarCenterSpeed, eTargetCarAngleOffset);
+#endif
+            tMotorData.Debug_TargetAngleOffset2 = eTargetCarAngleOffset;
+
+            // 算出目標車身角度 (vector format)
+            tTargetCarVector = rtVectorOP_2D.Rotate(a_tPathVector, new rtVector(0, 0), eTargetCarAngleOffset * Math.PI / 180);
+
+            // 算出目標車身角度與當下車身角度的差距
+            eDeltaCarAngle = AngleDifferenceCal(tTargetCarVector, eCarAngle);
+#if rtAGV_BACK_MODE
+            if (tMotorData.bBackWard)
+            {   // 倒退走 >> 同樣角度差距下 正走跟反走 車輪要打的方向相反
+                eDeltaCarAngle = -eDeltaCarAngle;
+            }
+#endif
+            tMotorData.Debug_eDeltaCarAngle = eDeltaCarAngle;
+
+            // 用角度差距算出 適當的車輪馬達轉角
+            eMototAngle = MotorAngleCal(eDeltaCarAngle, 0, tMotorCfg.tPID_MotorAngleCoe);
+
+            // 加上之前的角度 offset
+            eMototAngle = eMototAngle + tMotorData.lTargetAngle;
+
+            return eMototAngle;
         }
     }
 

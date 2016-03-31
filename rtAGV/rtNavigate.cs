@@ -68,7 +68,6 @@ namespace rtAGV_Navigate
                     tNodeId = a_atNodeLocal[i].tNodeId;
                 }
             }
-
             return tNodeId;
         }
 
@@ -119,21 +118,26 @@ namespace rtAGV_Navigate
 
             int lNodeNumS2C = 0, lNodeNumC2D = 0, lNodeNumS2D = 0;
 
-            lNodeListLimit = a_lNodeNum - 1;    // 路徑節點最大數目 = 節點數 - 1
+            lNodeListLimit = a_lNodeNum;    // 路徑節點最大數目 = 節點數 - 1
             lNodeNumS2C = a_alNodeListNum[a_lIndexS2C];
             lNodeNumC2D = a_alNodeListNum[a_lIndexC2D];
             lNodeNumS2D = a_alNodeListNum[a_lIndexS2D];
-
+            if (a_lIndexS2D == 2)
+            {
+              //  Console.WriteLine("456");
+            }
             // 將 Src to Mid 中的List 放進 Path
             for (lCntTmp = 0; lCntTmp < lNodeNumS2C; lCntTmp++)
             {
                 a_alNodeListTmp[a_lIndexS2D][lCntTmp] = a_alNodeListTmp[a_lIndexS2C][lCntTmp];
+               /* if (a_lIndexS2D == 2) 
+                    Console.WriteLine(a_alNodeListTmp[a_lIndexS2C][lCntTmp]);*/
             }
 
             // 將 Mid to Dest 中的List 放進 Path 但Mid要扣除 >>　lCntNodeList = 1 開始 是為了 扣除中介點
             for (lCntTmp = lNodeNumS2C, lCntNodeList = 1; lCntTmp < lNodeNumS2C + lNodeNumC2D -1; lCntTmp++, lCntNodeList++)
             {
-                if (lCntTmp >= lNodeListLimit)
+                if (lCntTmp > lNodeListLimit)
                 {   // lCntTmp 要小於上限 >> lCntTmp 頂多從 0 ~ lNodeListLimit-1
                     continue; // error
                 }
@@ -160,7 +164,7 @@ namespace rtAGV_Navigate
             int lCntTmp_1 = 0, lCntTmp_2 = 0;
             int lNodeListLimit = 0;
 
-            lNodeListLimit = a_lNodeNum-1;    // 路徑節點最大數目 = 節點數 - 1
+            lNodeListLimit = a_lNodeNum ;    // 路徑節點最大數目 = 節點數 - 1
 
             if (a_lSrc == a_lDst)
             {   // 起終點相同 >> 直接回傳當下節點
@@ -212,6 +216,10 @@ namespace rtAGV_Navigate
 
                             //  更新路徑經過的節點數
                             alNodeListNum[lIndexS2D] = alNodeListNum[lIndexS2C] + alNodeListNum[lIndexC2D] - 1; // -1 是因為中介點重複算到
+                            if (lIndexS2D == 2)
+                            {
+                                //Console.Write("132");
+                            }
                         }
                     }
                 }
