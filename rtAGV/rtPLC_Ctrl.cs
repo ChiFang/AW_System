@@ -853,7 +853,7 @@ namespace PLC_Control
                     }
                     break;
                 default:
-                    // show error
+                    Console.WriteLine("Error");
                     break;
             }
             tMotorData.Debug_eErrorCurrent = eErrorCurrent;
