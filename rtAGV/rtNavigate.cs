@@ -31,6 +31,7 @@ namespace rtAGV_Navigate
 
             //搜尋最靠近車體位置的節點
             tNodeId = rtAGV_FindCurrentNode(a_tMap.atNodeLocal[lRegionIndex], a_tCarInfo);
+ 
 
 #if rtAGV_NAVIGATE_MULTI_REGION
             if (a_tDestData.tNodeId.lRegion == tNodeId.lRegion)
@@ -118,7 +119,7 @@ namespace rtAGV_Navigate
 
             int lNodeNumS2C = 0, lNodeNumC2D = 0, lNodeNumS2D = 0;
 
-            lNodeListLimit = a_lNodeNum;    // 路徑節點最大數目 = 節點數 - 1
+            lNodeListLimit = a_lNodeNum;    // 路徑節點最大數目 = 節點數
             lNodeNumS2C = a_alNodeListNum[a_lIndexS2C];
             lNodeNumC2D = a_alNodeListNum[a_lIndexC2D];
             lNodeNumS2D = a_alNodeListNum[a_lIndexS2D];
@@ -164,7 +165,7 @@ namespace rtAGV_Navigate
             int lCntTmp_1 = 0, lCntTmp_2 = 0;
             int lNodeListLimit = 0;
 
-            lNodeListLimit = a_lNodeNum ;    // 路徑節點最大數目 = 節點數 - 1
+            lNodeListLimit = a_lNodeNum ;    // 路徑節點最大數目 = 節點數
 
             if (a_lSrc == a_lDst)
             {   // 起終點相同 >> 直接回傳當下節點
