@@ -200,6 +200,65 @@ namespace rtAGV_Common
         }
     }
 
+    public class rtAngleDiff
+    {
+        /** \brief 求向量a_tIn 要順時針轉幾度才會到 向量a_tTarget */
+        public static double GetAngleDiff(rtVector a_tTarget, rtVector a_tIn)
+        {
+            double eTheta = 0, eCross = 0;
+
+            eTheta = rtVectorOP_2D.GetTheta(a_tTarget, a_tIn);
+            eCross = rtVectorOP_2D.Cross(a_tIn, a_tTarget);
+            eTheta = (eCross < 0) ? -eTheta : eTheta;
+
+            return eTheta; 
+        }
+
+        /** \brief 求角度a_tIn 要順時針轉幾度才會到 角度a_tTarget */
+        public static double GetAngleDiff(double a_eTarget, double a_eIn)
+        {
+            double eTheta = 0, eCross = 0;
+            rtVector tTarget = new rtVector();
+            rtVector tIn = new rtVector();
+
+            tTarget = rtVectorOP_2D.Angle2Vector(a_eTarget);
+            tIn = rtVectorOP_2D.Angle2Vector(a_eIn);
+            eTheta = rtVectorOP_2D.GetTheta(tTarget, tIn);
+            eCross = rtVectorOP_2D.Cross(tIn, tTarget);
+            eTheta = (eCross < 0) ? -eTheta : eTheta;
+
+            return eTheta;
+        }
+
+        /** \brief 求角度a_tIn 要順時針轉幾度才會到 向量a_tTarget */
+        public static double GetAngleDiff(rtVector a_tTarget, double a_eIn)
+        {
+            double eTheta = 0, eCross = 0;
+            rtVector tIn = new rtVector();
+
+            tIn = rtVectorOP_2D.Angle2Vector(a_eIn);
+            eTheta = rtVectorOP_2D.GetTheta(a_tTarget, tIn);
+            eCross = rtVectorOP_2D.Cross(tIn, a_tTarget);
+            eTheta = (eCross < 0) ? -eTheta : eTheta;
+
+            return eTheta;
+        }
+
+        /** \brief 求向量a_tIn 要順時針轉幾度才會到 角度a_tTarget */
+        public static double GetAngleDiff(double a_eTarget, rtVector a_tIn)
+        {
+            double eTheta = 0, eCross = 0;
+            rtVector tTarget = new rtVector();
+
+            tTarget = rtVectorOP_2D.Angle2Vector(a_eTarget);
+            eTheta = rtVectorOP_2D.GetTheta(tTarget, a_tIn);
+            eCross = rtVectorOP_2D.Cross(a_tIn, tTarget);
+            eTheta = (eCross < 0) ? -eTheta : eTheta;
+
+            return eTheta;
+        }
+    }
+
     public class rtVectorOP_2D
     {
         /** \brief 求某一點對某向量延伸一定長度 */
@@ -233,7 +292,7 @@ namespace rtAGV_Common
             return eOut;
         }
 
-        /** \brief 求某向量外積 */
+        /** \brief 求某向量外積 (a_tV1 * a_tV2) */
         public static double Cross(rtVector a_tV1, rtVector a_tV2)
         {
             double eOut = 0;
@@ -279,6 +338,7 @@ namespace rtAGV_Common
             return tMeetPoint;
         }
 
+        /** \brief 求某向量乘上某一純量 */
         public static rtVector VectorMultiple(rtVector a_tSrc, double a_eMultiple)
         {
             rtVector tMultipleVector = new rtVector();

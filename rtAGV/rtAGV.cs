@@ -122,6 +122,7 @@ namespace rtAGV_Sys
         {
             bEmergency = false;
             atPathInfo = new rtPath_Info[0];
+            atPathInfoForkForth = new rtPath_Info[0];
             CMotor = new rtMotorCtrl();
             CFork = new rtForkCtrl();
             tCarInfo.Init();
@@ -166,6 +167,9 @@ namespace rtAGV_Sys
 
         /** \brief Define: DEST_POSITION shift bits */
         public const ushort DEST_POSITION = 24;
+
+        /** \brief Define: Aligment Safe Angle */
+        public const ushort ALIGMENT_SAFE_ANGLE = 10;
 
         /** \brief Define: mask of shift bits */
         public const byte MASK = 0xFF;
@@ -252,43 +256,55 @@ namespace rtAGV_Sys
             }
         }
 
-        public void rtAGV_Navigation(rtWarehousingInfo a_tLocatData, ROI[] a_atObstacle, bool a_bPark)
-        {
+        public int rtAGV_Navigation(rtWarehousingInfo a_tLocatData, ROI[] a_atObstacle, bool a_bPark)
+        {   // 沒路徑 離終點太近無法校正等都會回傳-1 表示錯誤
+            int lCheckResult = 1;
 #if HT_Lee_DEBUG
             if (tAGV_Data.atPathInfo.Length <= 0 || a_atObstacle.Length != 0)
             {
+#endif   
+#if rtAGV_DEBUG_PRINT
+                Console.WriteLine("NowPosition: " + tAGV_Data.tCarInfo.tPosition.eX + "," + tAGV_Data.tCarInfo.tPosition.eY);
 #endif
                 // 沒路徑才計算，之後系統執行完導航都要清掉 path data避免之後動作載道上一次的路徑資料
                 // path planning
-                Console.WriteLine("NowPosition: " + tAGV_Data.tCarInfo.tPosition.eX + "," + tAGV_Data.tCarInfo.tPosition.eY);
                 rtPathPlanning.rtAGV_PathPlanning(
                     tAGV_Cfg.tMapCfg, tAGV_Cfg.atWarehousingCfg, tAGV_Cfg.atRegionCfg,
                     ref tAGV_Data.atPathInfo, ref tAGV_Data.tCarInfo, a_tLocatData, a_atObstacle);
 
-                // 修正路徑 >> 在走道中要靠某一邊來騰出旋轉空間
-                PathModifyForStorage(ref tAGV_Data.atPathInfo, tAGV_Data.tCarInfo, a_tLocatData.eDirection, a_bPark);
- #if HT_Lee_DEBUG
+                if(a_bPark)
+                {   // 如果是要停車 終點的轉彎模式要特別改
+                    tAGV_Data.atPathInfo[tAGV_Data.atPathInfo.Length - 1].ucTurnType = (byte)rtMotorCtrl.rtTurnType.PARK;
+                }
+
+                if (tAGV_Data.atPathInfo.Length > 0)
+                {   // 如果沒路徑就不需修正
+                    // 修正路徑 >> 在走道中要靠某一邊來騰出旋轉空間
+                    PathModifyForStorage(ref tAGV_Data.atPathInfo, tAGV_Data.tCarInfo, a_tLocatData.eDirection, a_bPark);
+                }
+
+                // 判斷是否已到達終點
+                lCheckResult = ArriveCheck(tAGV_Data.atPathInfo, a_tLocatData);
+#if HT_Lee_DEBUG
             }
 #endif
 
 #if rtAGV_DEBUG_PRINT
-                for (int i = 0; i < tAGV_Data.atPathInfo.Length; i++)
+            for (int i = 0; i < tAGV_Data.atPathInfo.Length; i++)
                 {
                     Console.WriteLine(i+"::" + tAGV_Data.atPathInfo[i].tSrc.eX + "," + tAGV_Data.atPathInfo[i].tSrc.eY + "-->" + tAGV_Data.atPathInfo[i].tDest.eX + "," + tAGV_Data.atPathInfo[i].tDest.eY + "--ucTurnType:" + tAGV_Data.atPathInfo[i].ucTurnType);
                    // Console.WriteLine("1::" + tAGV_Data.atPathInfo[1].tSrc.eX + "," + tAGV_Data.atPathInfo[1].tSrc.eY + "-->" + tAGV_Data.atPathInfo[1].tDest.eX + "," + tAGV_Data.atPathInfo[1].tDest.eY + "--ucTurnType:" + tAGV_Data.atPathInfo[1].ucTurnType);
                 }
 #endif
+            return lCheckResult;
         }
 
         public void rtAGV_MotorCtrl(ref rtPath_Info[] a_atPathInfo, double a_eDirection, bool a_bAligmentFree)
         {   // 一定要傳path 因為 path 不一定是agv裡面送貨用的 有可能是 取放貨時前進後退用的
-            double eErrorPower = 0;
-            double eTargetAngle = 0;
-            double eTargetError = 0;
+            double eTargetAngle = 0, eTargetError = 0, eWheelTheta = 0;
             int lPathIndex = 0;
             rtVector tV_S2D = new rtVector();
             rtVector tV_Aligment = new rtVector();
-            rtVector tCar = new rtVector();
             bool bAlignment = false;
             bool bBackMode = false;
 
@@ -297,64 +313,81 @@ namespace rtAGV_Sys
 
             lPathIndex = tAGV_Data.CMotor.tMotorData.lPathNodeIndex;
             tV_S2D = rtVectorOP_2D.GetVector(a_atPathInfo[lPathIndex].tSrc, a_atPathInfo[lPathIndex].tDest);
+
             if (a_bAligmentFree)
             {   // 不用對正路徑 除非差距過大
-                //
-                tCar = tCar = rtVectorOP_2D.Angle2Vector(tAGV_Data.tCarInfo.eAngle);
-                eTargetError = rtVectorOP_2D.GetTheta(tV_S2D, tCar);
-                bBackMode = (eTargetError >= 90) ? true : false;
-
-                tAGV_Data.CMotor.tMotorData.bPathAngleMatch = (eTargetError < 20 || (180- eTargetError) < 20) ? true: false;
-
+                tAGV_Data.CMotor.tMotorData.bPathAngleMatch = true;
+            }
+            else
+            {   // 須要對正路徑 (會自動判斷要正走還是反走)
                 if (tAGV_Data.CMotor.tMotorData.bPathAngleMatch == false)
-                {
-                    if(bBackMode)
-                    {   // 反向
-                        tV_Aligment = rtVectorOP_2D.VectorMultiple(tV_S2D, -1);
+                {   // 這段路徑還沒對正過
+                    eTargetError = Math.Abs(rtAngleDiff.GetAngleDiff(tV_S2D, tAGV_Data.tCarInfo.eAngle));   // 車身角度跟路線的角度差
+                    bBackMode = (eTargetError >= 90) ? true : false;    // 判斷正走還是反走方便
+                    eWheelTheta = Math.Abs(tAGV_Data.tCarInfo.eWheelAngle); // 當下車輪角度
+
+                    // 初步檢測 >> 角度&輪胎偏差別太大就執行路徑
+                    if (bBackMode)
+                    {
+                        tAGV_Data.CMotor.tMotorData.bPathAngleMatch = ((180 - eTargetError) < ALIGMENT_SAFE_ANGLE) ? true : false;
                     }
                     else
                     {
-                        tV_Aligment = tV_S2D;
+                        tAGV_Data.CMotor.tMotorData.bPathAngleMatch = (eTargetError < ALIGMENT_SAFE_ANGLE) ? true : false;
                     }
-                    
-                    eTargetAngle = rtVectorOP_2D.Vector2Angle(tV_Aligment);
-                    bAlignment = tAGV_Data.CMotor.CarAngleAlignment(eTargetAngle, tAGV_Data.tCarInfo);
+                    tAGV_Data.CMotor.tMotorData.bPathAngleMatch = (eWheelTheta < rtMotorCtrl.THETA_ERROR_TURN) ? true : false;
 
-                    if (bAlignment)
-                    {   // 已對準 開始執行路徑 並且把對準旗標拉起來
-                        tAGV_Data.CMotor.tMotorData.bPathAngleMatch = true;
-                    }
-                    else
-                    {   // 沒對準 不做動作就離開
-                        return;
-                    }
-                }
-                //
-            }
-            else
-            {   // 須要對正路徑
-                if (tAGV_Data.CMotor.tMotorData.bPathAngleMatch == false)
-                {   // 
-                    eTargetAngle = rtVectorOP_2D.Vector2Angle(tV_S2D);
-                    bAlignment = tAGV_Data.CMotor.CarAngleAlignment(eTargetAngle, tAGV_Data.tCarInfo);
+                    if (tAGV_Data.CMotor.tMotorData.bPathAngleMatch == false)
+                    {   // 初步檢測 fail >> do aligment
+                        tV_Aligment = (bBackMode) ? rtVectorOP_2D.VectorMultiple(tV_S2D, -1) : tV_S2D;
+                        eTargetAngle = rtVectorOP_2D.Vector2Angle(tV_Aligment);
+                        bAlignment = tAGV_Data.CMotor.CarAngleAlignment(eTargetAngle, tAGV_Data.tCarInfo);
 
-                    if(bAlignment)
-                    {   // 已對準 開始執行路徑 並且把對準旗標拉起來
-                        tAGV_Data.CMotor.tMotorData.bPathAngleMatch = true;
-                    }
-                    else
-                    {   // 沒對準 不做動作就離開
-                        return;
+                        if (bAlignment)
+                        {   // 已對準 開始執行路徑 並且把對準旗標拉起來
+                            tAGV_Data.CMotor.tMotorData.bPathAngleMatch = true;
+                        }
+                        else
+                        {   // 沒對準 不做動作就離開
+                            return;
+                        }
                     }
                 }
             }
-            
+
             // 正常控制
-            // decide Motor Power
-            eErrorPower = tAGV_Data.CMotor.MotorPower_CtrlNavigate(a_atPathInfo, tAGV_Data.tCarInfo);
 
-            // decide Motor Angle
-            tAGV_Data.CMotor.MotorAngle_CtrlNavigate(a_atPathInfo, tAGV_Data.tCarInfo);
+            if (a_atPathInfo[tAGV_Data.CMotor.tMotorData.lPathNodeIndex].ucStatus == (byte)rtMotorCtrl.rtStatus.STRAIGHT)
+            {   //  走直線
+                // decide Motor Power
+                tAGV_Data.CMotor.MotorPower_CtrlNavigateStraight(a_atPathInfo, tAGV_Data.tCarInfo);
+
+                // decide Motor Angle
+                tAGV_Data.CMotor.MotorAngle_CtrlNavigateStraight(a_atPathInfo, tAGV_Data.tCarInfo);
+                return;
+            }
+
+            if (a_atPathInfo[tAGV_Data.CMotor.tMotorData.lPathNodeIndex].ucStatus == (byte)rtMotorCtrl.rtStatus.TURN)
+            {   //  轉彎
+                switch (a_atPathInfo[tAGV_Data.CMotor.tMotorData.lPathNodeIndex].ucTurnType)
+                {
+                    case (byte)rtMotorCtrl.rtTurnType.SIMPLE:   // 用Aligment 機制
+                        tAGV_Data.CMotor.Motor_CtrlNavigateAligment(a_atPathInfo, tAGV_Data.tCarInfo);
+                        break;
+                    case (byte)rtMotorCtrl.rtTurnType.SMOOTH:
+                        // decide Motor Power
+                        tAGV_Data.CMotor.MotorPower_CtrlNavigateSmoothTurn(a_atPathInfo, tAGV_Data.tCarInfo);
+
+                        // decide Motor Angle
+                        tAGV_Data.CMotor.MotorAngle_CtrlNavigateSmoothTurn(a_atPathInfo, tAGV_Data.tCarInfo);
+                        break;
+                    default:
+                        // show error msg
+                        break;
+                }
+                return;
+            }
+
         }
 
         static void ExtendPathSize(ref rtPath_Info a_tPathInfo, int a_lExtendSize)
@@ -521,7 +554,6 @@ namespace rtAGV_Sys
         public void Park()
         {
             bool bBreak = false, bDone = false;
-            // NodeId tPosition = new NodeId();
             WarehousPos tWarehousPos = new WarehousPos();
             tWarehousPos = ObtainWarehousPosition(true);
 
@@ -852,15 +884,12 @@ namespace rtAGV_Sys
             if (tAGV_Data.bEmergency == false)
             {
                 // 檢測或算出路徑
-                rtAGV_Navigation(LocatData, atObstacle, a_bPark);
-
-                // 判斷是否已到達終點
-                lCheckResult = ArriveCheck(tAGV_Data.atPathInfo, LocatData);
+                lCheckResult = rtAGV_Navigation(LocatData, atObstacle, a_bPark);
 
                 if (lCheckResult > 0)
                 {   //  行走控制
                     // 控制馬達
-                    rtAGV_MotorCtrl(ref tAGV_Data.atPathInfo, a_tWarehousPos.eDirection, true);
+                    rtAGV_MotorCtrl(ref tAGV_Data.atPathInfo, a_tWarehousPos.eDirection, false);
                     return;
                 }
                 if (lCheckResult == 0)
