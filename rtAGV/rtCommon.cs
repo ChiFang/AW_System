@@ -54,10 +54,14 @@ namespace rtAGV_Common
                 atPathInfo[lCnt].ucStatus = 1;
                 atPathInfo[lCnt].ucTurnType = 0;
             }
-            atPathInfo[lCnt].tSrc.Init();
-            atPathInfo[lCnt].tDest.Init();
-            atPathInfo[lCnt].ucStatus = 1;
-            atPathInfo[lCnt].ucTurnType = 2;
+
+           if (a_lPathLength != 0)
+           {
+                atPathInfo[lCnt].tSrc.Init();
+                atPathInfo[lCnt].tDest.Init();
+                atPathInfo[lCnt].ucStatus = 1;
+                atPathInfo[lCnt].ucTurnType = 2;
+            }
             return atPathInfo;
         }
     }

@@ -11,6 +11,8 @@
 
 #define rtAGV_PATH_OFFSET
 
+#define rtAGV_DEBUG_PRINT_0425
+
 using System;
 
 using rtAGV_Common;
@@ -430,16 +432,13 @@ namespace PLC_Control
             return true;
         }
 
-
-
-        public static bool CarVectorVerify(rtPath_Info[] a_atPathInfo, double a_eCarAngle, int a_lPathNodeIndex)
+        public static bool BackWardVerify(rtPath_Info a_tPathInfo, double a_eCarAngle)
         {
             double eDeltaAngle = 0;
             rtVector tV_S2D; // source point to destination
 
             // 算出當前路徑向量
-            tV_S2D.eX = a_atPathInfo[a_lPathNodeIndex].tDest.eX - a_atPathInfo[a_lPathNodeIndex].tSrc.eX;
-            tV_S2D.eY = a_atPathInfo[a_lPathNodeIndex].tDest.eY - a_atPathInfo[a_lPathNodeIndex].tSrc.eY;
+            tV_S2D = rtVectorOP_2D.GetVector(a_tPathInfo.tSrc, a_tPathInfo.tDest);
 
             // 算出車身向量與路徑向量的夾角
             eDeltaAngle = rtAngleDiff.GetAngleDiff(tV_S2D, a_eCarAngle);
@@ -525,16 +524,36 @@ namespace PLC_Control
             int lPathNodeIndex = 0;
             rtVector tV_S2D_Next = new rtVector();
             rtVector tV_Aligment = new rtVector();
+            rtTurnType tTurnTypeNext;
 
             lPathNodeIndex = tMotorData.lPathNodeIndex;
-            tMotorData.bBackWard = CarVectorVerify(a_atPathInfo, a_tCarData.eAngle, lPathNodeIndex);
+            tTurnTypeNext = (rtTurnType)a_atPathInfo[lPathNodeIndex + 1].ucTurnType;
             tV_S2D_Next = rtVectorOP_2D.GetVector(a_atPathInfo[lPathNodeIndex+1].tSrc, a_atPathInfo[lPathNodeIndex+1].tDest);
-            tV_Aligment = (tMotorData.bBackWard || a_atPathInfo[lPathNodeIndex + 1].ucTurnType == (byte)rtTurnType.PARK) ? rtVectorOP_2D.VectorMultiple(tV_S2D_Next, -1) : tV_S2D_Next;
+            tMotorData.bBackWard = BackWardVerify(a_atPathInfo[lPathNodeIndex+1], a_tCarData.eAngle);
+
+            if(tTurnTypeNext == rtTurnType.ARRIVE)
+            {   // 下段是要取放貨 >> 一定要正走
+                tV_Aligment = tV_S2D_Next;
+            }
+            else if(tTurnTypeNext == rtTurnType.PARK)
+            {   // 下段是要停車 >> 一定要反走走
+                tV_Aligment = rtVectorOP_2D.VectorMultiple(tV_S2D_Next, -1);
+            }
+            else
+            {   // 下段非停車或取放貨 >> 依照方便度自行決定正反走
+                tV_Aligment = (tMotorData.bBackWard) ? rtVectorOP_2D.VectorMultiple(tV_S2D_Next, -1) : tV_S2D_Next;
+            }
+            
             eTargetAngle = rtVectorOP_2D.Vector2Angle(tV_Aligment);
-            bAlignment = CarAngleAlignment(eTargetAngle, a_tCarData);
 
             // 用車身方向與目標方向的夾角當誤差
             eErrorCurrent = Math.Abs(rtAngleDiff.GetAngleDiff(tV_Aligment, a_tCarData.eAngle));
+#if rtAGV_DEBUG_PRINT_0425
+           /* Console.WriteLine("eErrorCurrent:" + eErrorCurrent.ToString());
+            Console.WriteLine("tV_Aligment:" + tV_Aligment.ToString());
+            Console.WriteLine("a_tCarData.eAngle:" + a_tCarData.eAngle.ToString());*/
+#endif           
+            bAlignment = CarAngleAlignment(eTargetAngle, a_tCarData);
 
             if (bAlignment)
             {
@@ -550,7 +569,7 @@ namespace PLC_Control
             bool bOutFlag = false;
             double eErrorCurrent = 0;
 
-            tMotorData.bBackWard = CarVectorVerify(a_atPathInfo, a_tCarData.eAngle, tMotorData.lPathNodeIndex);
+            tMotorData.bBackWard = BackWardVerify(a_atPathInfo[tMotorData.lPathNodeIndex+1], a_tCarData.eAngle);
 
             // 用車身與下一段路徑的夾角當power誤差
             eErrorCurrent = MotorPower_TurnErrorCal(a_atPathInfo[tMotorData.lPathNodeIndex + 1], a_tCarData.eAngle);
@@ -588,7 +607,7 @@ namespace PLC_Control
 
             tMotorData.bFinishFlag = false;
             tMotorData.bOverDest = false;
-            tMotorData.bBackWard = CarVectorVerify(a_atPathInfo, a_tCarData.eAngle, tMotorData.lPathNodeIndex);
+            tMotorData.bBackWard = BackWardVerify(a_atPathInfo[tMotorData.lPathNodeIndex], a_tCarData.eAngle );
             tMotorData.bOverDest = OverDestination(a_atPathInfo, a_tCarData.tPosition, tMotorData.lPathNodeIndex);
             if (tMotorData.bOverDest == true)
             {   // 判斷超過終點
@@ -1022,6 +1041,11 @@ namespace PLC_Control
             return eTargetAngle;
         }
 
+        public void ResetCarAlignmentFlag()
+        {
+            bAlignmentCarAngleMatch = false;
+        }
+
         public bool CarAngleAlignment(double a_eTargetAngle, rtCarData a_tCarData)
         {
             bool bMatched = false;
@@ -1365,7 +1389,7 @@ namespace PLC_Control
     public class rtForkCtrl
     {
         /** \brief 堆高機貨叉狀態宣告 */
-        public enum ForkStatus { NULL, ALIMENT, SET_HEIGHT, FORTH, BACKWARD, PICKUP, PICKDOWN, RESET_HEIGHT, FINISH , ERROR, SET_DEPTH, RESET_DEPTH };
+        public enum ForkStatus { NULL, ALIMENT, SET_HEIGHT, FORTH, BACKWARD, PICKUP, PICKDOWN, RESET_HEIGHT, FINISH, ERROR, SET_DEPTH, RESET_DEPTH, ALIMENT_FORTH };
 
         /** \brief 堆高機貨叉動作模式 */
         public enum ForkActionMode { LOAD = 0,UNLOAD = 1};

@@ -8,6 +8,8 @@
 
 #define ThreadDelay
 
+// #define NAVIGATE_EXTEND_PATH
+
 using System;
 
 using rtAGV_Common;
@@ -151,7 +153,7 @@ namespace rtAGV_Sys
         public enum rtAGVStatus { STANDBY, PAUSE, STOP, EMERGENCY_STOP, MOVE_TO_SRC, LOAD, MOVE_TO_DEST, UNLOAD, MOVE_TO_PARK, ERROR_NO_CFG, PARKING, ALIMENT};
 
         /** \brief Define: 取貨後後退距離 */
-        public const int STORAGE_BACK_DISTANCE = 1000;
+        public const int STORAGE_BACK_DISTANCE = 900;
 
         /** \brief Define: CMD shift bits */
         public const ushort CMD = 56;
@@ -264,7 +266,7 @@ namespace rtAGV_Sys
             {
 #endif   
 #if rtAGV_DEBUG_PRINT
-                Console.WriteLine("NowPosition: " + tAGV_Data.tCarInfo.tPosition.eX + "," + tAGV_Data.tCarInfo.tPosition.eY);
+                //Console.WriteLine("NowPosition: " + tAGV_Data.tCarInfo.tPosition.eX + "," + tAGV_Data.tCarInfo.tPosition.eY);
 #endif
                 // 沒路徑才計算，之後系統執行完導航都要清掉 path data避免之後動作載道上一次的路徑資料
                 // path planning
@@ -293,7 +295,6 @@ namespace rtAGV_Sys
             for (int i = 0; i < tAGV_Data.atPathInfo.Length; i++)
                 {
                     Console.WriteLine(i+"::" + tAGV_Data.atPathInfo[i].tSrc.eX + "," + tAGV_Data.atPathInfo[i].tSrc.eY + "-->" + tAGV_Data.atPathInfo[i].tDest.eX + "," + tAGV_Data.atPathInfo[i].tDest.eY + "--ucTurnType:" + tAGV_Data.atPathInfo[i].ucTurnType);
-                   // Console.WriteLine("1::" + tAGV_Data.atPathInfo[1].tSrc.eX + "," + tAGV_Data.atPathInfo[1].tSrc.eY + "-->" + tAGV_Data.atPathInfo[1].tDest.eX + "," + tAGV_Data.atPathInfo[1].tDest.eY + "--ucTurnType:" + tAGV_Data.atPathInfo[1].ucTurnType);
                 }
 #endif
             return lCheckResult;
@@ -323,7 +324,21 @@ namespace rtAGV_Sys
                 if (tAGV_Data.CMotor.tMotorData.bPathAngleMatch == false)
                 {   // 這段路徑還沒對正過
                     eTargetError = Math.Abs(rtAngleDiff.GetAngleDiff(tV_S2D, tAGV_Data.tCarInfo.eAngle));   // 車身角度跟路線的角度差
-                    bBackMode = (eTargetError >= 90) ? true : false;    // 判斷正走還是反走方便
+
+                    // Fang fix on 2016 0505
+                    if(a_atPathInfo[lPathIndex].ucTurnType == (byte)rtMotorCtrl.rtTurnType.ARRIVE)
+                    {   
+                        bBackMode = false;    //  這段就得取貨 >> 強迫正走
+                    }
+                    else if(a_atPathInfo[lPathIndex].ucTurnType == (byte)rtMotorCtrl.rtTurnType.PARK)
+                    {
+                        bBackMode = true;    //  這段就得停車 >> 強迫反走
+                    }
+                    else
+                    {
+                        bBackMode = (eTargetError >= 90) ? true : false;    // 自行判斷正走還是反走方便
+                    }
+                    
                     eWheelTheta = Math.Abs(tAGV_Data.tCarInfo.eWheelAngle); // 當下車輪角度
 
                     // 初步檢測 >> 角度&輪胎偏差別太大就執行路徑
@@ -335,13 +350,15 @@ namespace rtAGV_Sys
                     {
                         tAGV_Data.CMotor.tMotorData.bPathAngleMatch = (eTargetError < ALIGMENT_SAFE_ANGLE) ? true : false;
                     }
-                    tAGV_Data.CMotor.tMotorData.bPathAngleMatch = (eWheelTheta < rtMotorCtrl.THETA_ERROR_TURN) ? true : false;
+                    tAGV_Data.CMotor.tMotorData.bPathAngleMatch = (eWheelTheta < rtMotorCtrl.THETA_ERROR_TURN) ? tAGV_Data.CMotor.tMotorData.bPathAngleMatch : false;
 
                     if (tAGV_Data.CMotor.tMotorData.bPathAngleMatch == false)
                     {   // 初步檢測 fail >> do aligment
                         tV_Aligment = (bBackMode) ? rtVectorOP_2D.VectorMultiple(tV_S2D, -1) : tV_S2D;
                         eTargetAngle = rtVectorOP_2D.Vector2Angle(tV_Aligment);
-                        bAlignment = tAGV_Data.CMotor.CarAngleAlignment(eTargetAngle, tAGV_Data.tCarInfo);
+
+                        bAlignment = tAGV_Data.CMotor.CarAngleAlignment(
+                            eTargetAngle, tAGV_Data.tCarInfo);
 
                         if (bAlignment)
                         {   // 已對準 開始執行路徑 並且把對準旗標拉起來
@@ -351,6 +368,10 @@ namespace rtAGV_Sys
                         {   // 沒對準 不做動作就離開
                             return;
                         }
+                    }
+                    else
+                    {   // 初步檢測 success >> reset aligment flag "bAlignmentCarAngleMatch"
+                        tAGV_Data.CMotor.ResetCarAlignmentFlag();
                     }
                 }
             }
@@ -420,29 +441,10 @@ namespace rtAGV_Sys
                         tDestVector = rtVectorOP_2D.VectorMultiple(tDestVector, -1);
                     }
                     eDeltaTmp = rtVectorOP_2D.GetTheta(tPathVectorFinal, tDestVector);
-                    if (eDeltaTmp > rtMotorCtrl.DELTA_ANGLE_TH) // need path offset
-                    {   
-                        // extend path before turn
-                        lLastPathIndex = lCnt - 1;
-                        if (lLastPathIndex >= 0)
-                        {   // 如果有前一段就改變其長度
-                            tPathVectorLast = rtVectorOP_2D.GetVector(a_atPathInfo[lLastPathIndex].tSrc, a_atPathInfo[lLastPathIndex].tDest);
-                            eCross = rtVectorOP_2D.Cross(tPathVectorFinal, tDestVector);
 
-                            if (eCross > 0)
-                            {   // 縮短
-                                lExtendLength =  -(rtMotorCtrl.DEFAULT_PATH_OFFSET);
-                            }
-                            else
-                            {   // 延長
-                                lExtendLength = rtMotorCtrl.DEFAULT_PATH_OFFSET;
-                            }
-                            if (a_bPark)
-                            {   // 停車要取反向
-                                lExtendLength = -lExtendLength;
-                            }
-                            ExtendPathSize(ref a_atPathInfo[lLastPathIndex], lExtendLength);
-                        }
+                    if (eDeltaTmp > rtMotorCtrl.DELTA_ANGLE_TH)
+                    {   // need path offset
+                        
 
                         eCross = rtVectorOP_2D.Cross(tPathVectorFinal, tDestVector);
                         if(eCross < 0)
@@ -467,11 +469,17 @@ namespace rtAGV_Sys
                             a_atPathInfo[lCntFix].tSrc = rtVectorOP_2D.ExtendPointAlongVector(a_atPathInfo[lCntFix].tSrc, tVlaw, rtMotorCtrl.DEFAULT_PATH_OFFSET);
                             a_atPathInfo[lCntFix].tDest = rtVectorOP_2D.ExtendPointAlongVector(a_atPathInfo[lCntFix].tDest, tVlaw, rtMotorCtrl.DEFAULT_PATH_OFFSET);
                         }
-                        break;
 
+                        lLastPathIndex = lCnt - 1;
+                        if (lLastPathIndex >= 0)
+                        {   // 如果有前一段就改變其終點 >> 改成下一段的起點 (連到最終點的那一整串的第一段)
+                            a_atPathInfo[lLastPathIndex].tDest.Set(a_atPathInfo[lCnt].tSrc.eX, a_atPathInfo[lCnt].tSrc.eY);
+                        }
+                        break;
                     }
                     else
                     {   // 不需要偏移offset
+#if NAVIGATE_EXTEND_PATH
                         rtVector tV_S2D = new rtVector();
                         rtVector tCar = new rtVector();
                         tV_S2D = rtVectorOP_2D.GetVector(a_atPathInfo[0].tSrc, a_atPathInfo[0].tDest);
@@ -483,6 +491,7 @@ namespace rtAGV_Sys
                             lCarLength = (int)(rtVectorOP_2D.GetDistance(a_tCarData.tMotorPosition, a_tCarData.tPosition));
                             ExtendPathSize(ref a_atPathInfo[lFinalPathIndex], -lCarLength);
                         }
+#endif
                     }
                 }
             }
@@ -492,6 +501,12 @@ namespace rtAGV_Sys
         {
             a_tAGV.ullAGV_Cmd = 0x00;
             a_tAGV.tAGV_Cfg.LoadDefault();
+            a_tAGV.tAGV_Data.Init();
+        }
+
+        public static void ResetForStandby(rtAGV_Control a_tAGV)
+        {
+            //a_tAGV.ullAGV_Cmd = 0x00;
             a_tAGV.tAGV_Data.Init();
         }
 
@@ -581,14 +596,15 @@ namespace rtAGV_Sys
                     // 對準停車方向
                     case (byte)rtAGVStatus.ALIMENT:
                         bDone = tAGV_Data.CMotor.CarAngleAlignment(
-                            tAGV_Cfg.atWarehousingCfg[tWarehousPos.lRegion][tWarehousPos.lIndex].eDirection, tAGV_Data.tCarInfo);
+                            tAGV_Cfg.atWarehousingCfg[tWarehousPos.lRegion][tWarehousPos.lIndex].eDirection,
+                            tAGV_Data.tCarInfo);
 
                         if (bDone)
                         {   // 達到要的角度 >>  進入 PARKING 動作
                             rtVector tDirectionLocal = new rtVector();
                             tDirectionLocal = rtVectorOP_2D.Angle2Vector(tAGV_Cfg.atWarehousingCfg[tWarehousPos.lRegion][tWarehousPos.lIndex].eDirection);
                             tDirectionLocal = rtVectorOP_2D.VectorMultiple(tDirectionLocal, -1);
-
+                            tAGV_Data.atPathInfoForkForth = new rtPath_Info[1];
                             tAGV_Data.atPathInfoForkForth[0].ucStatus = (byte)rtMotorCtrl.rtStatus.STRAIGHT;
                             tAGV_Data.atPathInfoForkForth[0].ucTurnType = (byte)rtMotorCtrl.rtTurnType.ARRIVE;
 
@@ -620,12 +636,14 @@ namespace rtAGV_Sys
                                 // reset
                                 tAGV_Data.CMotor = new rtMotorCtrl();
                                 tAGV_Data.ucAGV_Status = (byte)rtAGVStatus.STANDBY;
+                                tAGV_Data.atPathInfoForkForth = new rtPath_Info[0];
                             }
                         }
                         break;
                     // 結束
                     case (byte)rtAGVStatus.STANDBY:
-                        Reset(this);
+                        ResetForStandby(this);
+                        bBreak = true;
                         break;
 
                     default:
@@ -677,7 +695,8 @@ namespace rtAGV_Sys
                         break;
                     // 結束
                     case (byte)rtAGVStatus.STANDBY:
-                        Reset(this);
+                        ResetForStandby(this);
+                        bBreak = true;
                         break;
                     default:
                         EmergencyStop();
@@ -730,7 +749,8 @@ namespace rtAGV_Sys
                         break;
                     // 結束
                     case (byte)rtAGVStatus.STANDBY:
-                        Reset(this);
+                        ResetForStandby(this);
+                        bBreak = true;
                         break;
                     default:
                         EmergencyStop();
@@ -814,7 +834,8 @@ namespace rtAGV_Sys
                         break;
                     // 結束
                     case (byte)rtAGVStatus.STANDBY:
-                        Reset(this);
+                        ResetForStandby(this);
+                        bBreak = true;
                         break;
                     default:
                         EmergencyStop();
@@ -922,7 +943,7 @@ namespace rtAGV_Sys
             else
             {
 #if rtAGV_DEBUG_PRINT
-                //Console.WriteLine("ForkData.height: " + tAGV_Data.CFork.tForkData.height + ",ForkData.distanceDepth :" + tAGV_Data.CFork.tForkData.distanceDepth+ "--" + eDiffHeight + "," + eDiffDepth);
+                //Console.WriteLine("ForkData.height: " + tAGV_Data.CFork.tForkData.height + ",ForkData.distanceDepth :" + tAGV_Data.tSensorData.tForkInputData.distanceDepth + "--" + eDiffHeight + "," + eDiffDepth);
 #endif
                 return false;
             }
@@ -1016,8 +1037,26 @@ namespace rtAGV_Sys
                                 // reset
                                 tAGV_Data.atPathInfo = new rtPath_Info[0];
                                 tAGV_Data.CMotor = new rtMotorCtrl();
-                                tAGV_Data.CFork.tForkData.ucStatus = (byte)rtForkCtrl.ForkStatus.SET_DEPTH;
+                                // tAGV_Data.CFork.tForkData.ucStatus = (byte)rtForkCtrl.ForkStatus.SET_DEPTH;
+                                tAGV_Data.CFork.tForkData.ucStatus = (byte)rtForkCtrl.ForkStatus.ALIMENT_FORTH;
+                                
                             }
+                        }
+                        break;
+                    // ALIMENT_FORTH
+                    case (byte)rtForkCtrl.ForkStatus.ALIMENT_FORTH:
+                        bDone = false;
+                        bDone = tAGV_Data.CMotor.CarAngleAlignment(
+                            tAGV_Cfg.atWarehousingCfg[a_tWarehousPos.lRegion][a_tWarehousPos.lIndex].eDirection,
+                            tAGV_Data.tCarInfo);
+
+                       /* tAGV_Data.CFork.tForkData.distanceDepth = 0;
+                        tAGV_Data.CFork.tForkData.height = 0;*/
+                        tAGV_Data.CFork.tForkData.bEnable = false;
+
+                        if (bDone)
+                        {   // 達到要的角度 >> 進入 SET_DEPTH 動作
+                            tAGV_Data.CFork.tForkData.ucStatus = (byte)rtForkCtrl.ForkStatus.SET_DEPTH;
                         }
                         break;
                     // SET_DEPTH
@@ -1093,7 +1132,7 @@ namespace rtAGV_Sys
                         break;
                     // RESET_HEIGHT
                     case (byte)rtForkCtrl.ForkStatus.RESET_HEIGHT:
-                        tAGV_Data.CFork.tForkData.height = 70;
+                        tAGV_Data.CFork.tForkData.height = 90;
                         tAGV_Data.CFork.tForkData.distanceDepth = 0;
                         tAGV_Data.CFork.tForkData.bEnable = true;
                         if (ForkActionFinishCheck())

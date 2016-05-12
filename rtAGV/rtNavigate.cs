@@ -82,7 +82,7 @@ namespace rtAGV_Navigate
             a_lPathLength--;    // 路徑段數比節點數少1
 
             a_atPathInfo = rtPath_Info.InitSet(a_lPathLength);
-
+            
             for (lCnt = 0; lCnt < a_lPathLength; lCnt++)
             {
                 a_atPathInfo[lCnt].tSrc.eX = a_atNodeLocal[alPathResult[lCnt]].tCoordinate.eX;
