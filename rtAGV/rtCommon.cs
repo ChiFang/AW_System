@@ -30,6 +30,10 @@ namespace rtAGV_Common
 
     public struct rtPath_Info
     {
+        public enum rtStatus { STRAIGHT = 1, TURN = 2, DONE = 0 };
+
+        public enum rtTurnType { SIMPLE = 0, SMOOTH = 1, ARRIVE = 2, PARK = 3 };
+
         /** \brief source position */
         public rtVector tSrc;
 
@@ -51,16 +55,16 @@ namespace rtAGV_Common
             {
                 atPathInfo[lCnt].tSrc.Init();
                 atPathInfo[lCnt].tDest.Init();
-                atPathInfo[lCnt].ucStatus = 1;
-                atPathInfo[lCnt].ucTurnType = 0;
+                atPathInfo[lCnt].ucStatus = (byte)rtStatus.STRAIGHT;
+                atPathInfo[lCnt].ucTurnType = (byte)rtTurnType.SIMPLE;
             }
 
-           if (a_lPathLength != 0)
-           {
+            if (a_lPathLength != 0)
+            {
                 atPathInfo[lCnt].tSrc.Init();
                 atPathInfo[lCnt].tDest.Init();
-                atPathInfo[lCnt].ucStatus = 1;
-                atPathInfo[lCnt].ucTurnType = 2;
+                atPathInfo[lCnt].ucStatus = (byte)rtStatus.STRAIGHT;
+                atPathInfo[lCnt].ucTurnType = (byte)rtTurnType.ARRIVE;
             }
             return atPathInfo;
         }

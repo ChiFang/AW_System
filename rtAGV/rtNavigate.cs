@@ -7,8 +7,6 @@ using System.Text;
 using System.IO;
 using rtAGV_Common;
 
-
-
 namespace rtAGV_Navigate
 {
     public class rtPathPlanning
@@ -62,7 +60,7 @@ namespace rtAGV_Navigate
             double MinDistance = EMPTY_DATA;
             for (int i = 0; i < a_atNodeLocal.Length; i++)
             {
-                double EachDistance = GetDistance(a_atNodeLocal[i].tCoordinate, a_tCarInfo.tPosition);
+                double EachDistance = rtVectorOP_2D.GetDistance(a_atNodeLocal[i].tCoordinate, a_tCarInfo.tPosition);
                 if (EachDistance <= MinDistance)
                 {
                     MinDistance = EachDistance;
@@ -105,34 +103,21 @@ namespace rtAGV_Navigate
             return tNodeId;
         }
 
-        public static int[] FindPathofNode()
-        {
-            int[] alPath = new int[0];
-
-            return alPath;
-        }
-
         static void MergePath(int a_lIndexS2D, int a_lIndexS2C, int a_lIndexC2D, int[] a_alNodeListNum, int a_lNodeNum, ref int[][] a_alNodeListTmp)
         {
             int lCntTmp = 0, lCntNodeList = 0;
             int lNodeListLimit = 0;
-
             int lNodeNumS2C = 0, lNodeNumC2D = 0, lNodeNumS2D = 0;
 
             lNodeListLimit = a_lNodeNum;    // 路徑節點最大數目 = 節點數
             lNodeNumS2C = a_alNodeListNum[a_lIndexS2C];
             lNodeNumC2D = a_alNodeListNum[a_lIndexC2D];
             lNodeNumS2D = a_alNodeListNum[a_lIndexS2D];
-            if (a_lIndexS2D == 2)
-            {
-              //  Console.WriteLine("456");
-            }
+       
             // 將 Src to Mid 中的List 放進 Path
             for (lCntTmp = 0; lCntTmp < lNodeNumS2C; lCntTmp++)
             {
                 a_alNodeListTmp[a_lIndexS2D][lCntTmp] = a_alNodeListTmp[a_lIndexS2C][lCntTmp];
-               /* if (a_lIndexS2D == 2) 
-                    Console.WriteLine(a_alNodeListTmp[a_lIndexS2C][lCntTmp]);*/
             }
 
             // 將 Mid to Dest 中的List 放進 Path 但Mid要扣除 >>　lCntNodeList = 1 開始 是為了 扣除中介點
@@ -187,7 +172,6 @@ namespace rtAGV_Navigate
                 lCntTmp_2 = lCntTmp % a_lNodeNum;   // x
                 alNodeListTmp[lCntTmp][0] = lCntTmp_1;
                 alNodeListTmp[lCntTmp][1] = lCntTmp_2;
-
             }
 
             // create array for node list number
@@ -217,10 +201,6 @@ namespace rtAGV_Navigate
 
                             //  更新路徑經過的節點數
                             alNodeListNum[lIndexS2D] = alNodeListNum[lIndexS2C] + alNodeListNum[lIndexC2D] - 1; // -1 是因為中介點重複算到
-                            if (lIndexS2D == 2)
-                            {
-                                //Console.Write("132");
-                            }
                         }
                     }
                 }
@@ -417,7 +397,8 @@ namespace rtAGV_Navigate
                     if (i == j) TableArray[i * PointsCount + j] = 0;
                     else
                     {
-                        int Distance = (int)GetDistance(AllPoint[i], AllPoint[j]);
+                        int Distance = (int)rtVectorOP_2D.GetDistance(AllPoint[i], AllPoint[j]);
+
                         TableArray[i * PointsCount + j] = Distance;
                         TableArray[j * PointsCount + i] = Distance;
                     }
@@ -450,18 +431,6 @@ namespace rtAGV_Navigate
             sw.Close();
             fs.Close();
             ////
-        }
-
-        public static double GetDistance(rtVector a_tP1, rtVector a_tP2)
-        {
-            double eDistance = 0;
-            double eGapX = 0, eGapY = 0;
-
-            eGapX = a_tP2.eX - a_tP1.eX;
-            eGapY = a_tP2.eY - a_tP1.eY;
-            eDistance = Math.Sqrt(eGapX * eGapX + eGapY * eGapY);
-
-            return eDistance;
         }
     }
 }
