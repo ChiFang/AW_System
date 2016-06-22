@@ -19,17 +19,19 @@ using rtAGV_Common;
 namespace PLC_Control
 {
 
+    /// <summary> PID Coefficient struct </summary> 
     public struct rtPID_Coefficient
     {
-        /** \brief Kp */
+        /// <summary> Kp </summary>
         public double eKp;
 
-        /** \brief Ki */
+        /// <summary> Ki </summary>
         public double eKi;
 
-        /** \brief Kd */
+        /// <summary> Kd </summary>
         public double eKd;
 
+        /// <summary> init PID Coefficient struct </summary> 
         public void Init()
         {
             eKp = 0;
@@ -38,32 +40,34 @@ namespace PLC_Control
         }
     }
 
+    /// <summary> configure of motor control. </summary> 
     public struct rtMotor_Cfg
     {
-        /** \brief Define: PID Power Coeffient Kp */
+        /// <summary> Define: PID Power Coeffient Kp </summary>
         public const double PID_POWER_COE_KP = 0.0256;
 
-        /** \brief Define: PID Coefficient for Theta Offset Kp */
+        /// <summary> Define: PID Coefficient for Theta Offset Kp </summary>
         public const double PID_THETA_OFFSET_COE_KP = 0.34;
 
-        /** \brief Define: PID Coefficient for Car Angle to motor angle Kp */
+        /// <summary> Define: PID Coefficient for Car Angle to motor angle Kp </summary>
         public const double PID_ANGLE_CAR_MOTOR_COE_KP = 0.75;
 
-        /** \brief Define: Radius of smooth mode: 旋轉半徑 (判斷是否到達定點 開始準備轉向動作) */
+        /// <summary> Define: Radius of smooth mode: 旋轉半徑 (判斷是否到達定點 開始準備轉向動作) </summary>
         public const int RADIUS_SMOOTH = 1000;
 
-        /** \brief Configure: PID Power Coeffient */
+        /// <summary> Configure: PID Power Coeffient </summary>
         public rtPID_Coefficient tPID_PowerCoe;
 
-        /** \brief Configure: PID Coefficient for Theta Offset */
+        /// <summary> Configure: PID Coefficient for Theta Offset </summary>
         public rtPID_Coefficient tPID_ThetaOffsetCoe;
 
-        /** \brief Configure: PID Coefficient for Car Angle to motor angle */
+        /// <summary> Configure: PID Coefficient for Car Angle to motor angle </summary>
         public rtPID_Coefficient tPID_MotorAngleCoe;
 
-        /** \brief Configure: Rotation distance of turn in smooth mode */
+        /// <summary> Configure: Rotation distance of turn in smooth mode </summary>
         public int lRotationDistance;
 
+        /// <summary> init configure of motor control. </summary> 
         public void Init()
         {
             tPID_PowerCoe.Init();
@@ -72,6 +76,7 @@ namespace PLC_Control
             lRotationDistance = 0;
         }
 
+        /// <summary> Load Default configure of motor control. </summary> 
         public void LoadDefault()
         {
             tPID_PowerCoe.Init();
@@ -85,74 +90,76 @@ namespace PLC_Control
         }
     }
 
+    /// <summary> the struct of motor control output data. </summary> 
     public struct rtMotor_Data
     {
-        /** \brief InOut Data: path segment index */
+        /// <summary> InOut Data: path segment index </summary>
         public int lPathNodeIndex;
 
-        /** \brief InOut Data: navigate offset: 決定要靠路線左側(負) 還是右側(正) 走 */
+        /// <summary> InOut Data: navigate offset: 決定要靠路線左側(負) 還是右側(正) 走 </summary>
         public int lNavigateOffset;
 
-        /** \brief Output Data: Finish Flag */
+        /// <summary> Output Data: Finish Flag </summary>
         public bool bFinishFlag;
 
-        /** \brief Output Data: Turn (Rotation) Radius of turn in smooth mode */
+        /// <summary> Output Data: Turn (Rotation) Radius of turn in smooth mode </summary>
         public int lTurnRadius;
 
-        /** \brief Output Data: Turn (rotation) center of smooth turn */
+        /// <summary> Output Data: Turn (rotation) center of smooth turn </summary>
         public rtVector tTurnCenter;
 
-        /** \brief Output Data: 旋轉方向: 1: 中心在左邊>> 向右轉  -1:中心在右邊>> 向左轉  0: 出錯*/
+        /// <summary> Output Data: 旋轉方向: 1: 中心在左邊>> 向右轉  -1:中心在右邊>> 向左轉  0: 出錯</summary>
         public int lTurnDirection;
 
-        /** \brief Output Data: motor power */
+        /// <summary> Output Data: motor power </summary>
         public int lMotorPower;
 
-        /** \brief Output Data: motor torsion */
+        /// <summary> Output Data: motor torsion </summary>
         public int lMotorTorsion;
 
-        /** \brief Output Data: motor angle */
+        /// <summary> Output Data: motor angle </summary>
         public int lMotorAngle;
 
-        /** \brief Output Data: 轉彎角度的Offset*/
+        /// <summary> Output Data: 轉彎角度的Offset</summary>
         public double lTargetAngle;
 
-        /** \brief Output Data: 車身改變的角度 預測模型用*/
+        /// <summary> Output Data: 車身改變的角度 預測模型用</summary>
         public double eDeltaAngle;
 
-        /** \brief Output Data: 預測實際圓心*/
+        /// <summary> Output Data: 預測實際圓心</summary>
         public rtVector tPredictRotationCenter;
 
-        /** \brief Output Data: 當下是否是反向行走*/
+        /// <summary> Output Data: 當下是否是反向行走</summary>
         public bool bBackWard;
 
-        /** \brief 記錄車身是否已轉正 每段路徑都得轉正再開始執行 */
+        /// <summary> 記錄車身是否已轉正 每段路徑都得轉正再開始執行 </summary>
         public bool bPathAngleMatch;
 
-        /** \brief 判斷車子是否已超過該段路徑的終點 */
+        /// <summary> 判斷車子是否已超過該段路徑的終點 </summary>
         public bool bOverDest;
 
-        /** \brief 路徑偏差 */
+        /// <summary> 路徑偏差 </summary>
         public double ePathError;
 
-        /** \brief 車身角度和路徑角度偏差多少 */
+        /// <summary> 車身角度和路徑角度偏差多少 </summary>
         public double Debug_ePathThetaError;
 
-        /** \brief 沒考慮車速的目標車身角度 */
+        /// <summary> 沒考慮車速的目標車身角度 </summary>
         public double Debug_TargetAngleOffset1;
 
-        /** \brief 有考慮車速的目標車身角度 */
+        /// <summary> 有考慮車速的目標車身角度 </summary>
         public double Debug_TargetAngleOffset2;
 
-        /** \brief 兩前輪中心的速度 */
+        /// <summary> 兩前輪中心的速度 </summary>
         public double Debug_CenterSpeed;
 
-        /** \brief 目標車身角度與當下車身角度的差距 */
+        /// <summary> 目標車身角度與當下車身角度的差距 </summary>
         public double Debug_eDeltaCarAngle;
 
-        /** \brief 距離終點的角度或長度 */
+        /// <summary> 距離終點的角度或長度 </summary>
         public double eDistance2Dest;
 
+        /// <summary> stop all action of motor </summary> 
         public void StopCar()
         {
             lMotorPower = 0;
@@ -160,12 +167,15 @@ namespace PLC_Control
             lMotorAngle = 0;
         }
 
+
+        /// <summary> Clear Data of turn like radius and center </summary>
         public void ClearTurnData()
         {
             tTurnCenter.Init();
             lTurnRadius = 0;
         }
 
+        /// <summary> init function of motor control output data </summary>
         public void Init()
         {
             lPathNodeIndex = 0;
@@ -185,91 +195,95 @@ namespace PLC_Control
             bPathAngleMatch = false;
             bBackWard = false;
         }
-}
+    }
 
+    /// <summary> core class of motor control </summary>
     public class rtMotorCtrl
     {
         public enum rtTurnType_Simple { ERROR = 0, CAR_TURN_LEFT = 1, CAR_TURN_RIGHT = -1 };
 
-        /** \brief Define: 角度對齊的閥值 */
+        /// <summary> Define: 角度對齊的閥值 </summary>
         public const double ANGLE_MATCH_TH = 1.0;
 
-        /** \brief Define: 角度對齊時決定馬達力道的角度閥值 */
+        /// <summary> Define: 角度對齊時決定馬達力道的角度閥值 </summary>
         public const double ALIGNMENT_SPEED_ANGLE_TH = 15.0;
 
-        /** \brief Define: 系統頻率 8Hz = 0.125s 1次 */
+        /// <summary> Define: 系統頻率 8Hz = 0.125s 1次 </summary>
         public const double FREQUENCY = 8;
 
-        /** \brief Define: angle threshold: 判斷是否走過頭用的 */
+        /// <summary> Define: angle threshold: 判斷是否走過頭用的 </summary>
         public const double ANGLE_TH = 90;
 
-        /** \brief Define: 可以在原地打轉的角度 */
+        /// <summary> Define: 可以在原地打轉的角度 </summary>
         public static int ANGLE_ROTATION = 85;
 
-        /** \brief Define: 馬達(驅動輪胎)在這角度以內以直行計算 */
+        /// <summary> Define: 馬達(驅動輪胎)在這角度以內以直行計算 </summary>
         public const int ANGLE_TH_MOTION_PREDICT = 5;
 
-        /** \brief Define: 路徑間夾角的最大值限制 */
+        /// <summary> Define: 路徑間夾角的最大值限制 </summary>
         public const int ANGLE_TH_PATH = 80;
 
-        /** \brief Define: 與期望車身角度最大差距限制 */
+        /// <summary> Define: 與期望車身角度最大差距限制 </summary>
         public const int DELTA_CAR_ANGLE_LIMIT = 90;
 
-        /** \brief Define: 直行時角度超過這設定要車身校正 */
+        /// <summary> Define: 直行時角度超過這設定要車身校正 </summary>
         public const int ANGLE_TH_NEED_ALIGNMENT = 30;
 
-        /** \brief Define: 路徑偏差距離上限 >> 超過就不再增加角度 */
+        /// <summary> Define: 路徑偏差距離上限 >> 超過就不再增加角度 </summary>
         public const int PATH_ERROR_LIMT = 2000;
 
-        /** \brief Define: 預設對路徑的偏移量 >>  */
+        /// <summary> Define: 預設對路徑的偏移量 >>  </summary>
         public const int DEFAULT_PATH_OFFSET = 150;
 
-        /** \brief Define: distance threshold of simple mode: 判斷是否到達定點 開始準備轉向動作或停止 */
+        /// <summary> Define: distance threshold of simple mode: 判斷是否到達定點 開始準備轉向動作或停止 </summary>
         public const double DISTANCE_ERROR_SIMPLE = 60;
 
-        /** \brief Define: 判斷是否做完轉彎的動作 */
+        /// <summary> Define: 判斷是否做完轉彎的動作 </summary>
         public const double THETA_ERROR_TURN = 5;
 
-        /** \brief Define: 基礎速度(mm/s) : 判斷車身跟路徑所需夾角的基礎速度 */
+        /// <summary> Define: 基礎速度(mm/s) : 判斷車身跟路徑所需夾角的基礎速度 </summary>
         public const double BASE_SPEED = 125;
 
-        /** \brief Define: 轉向時馬達的power */
+        /// <summary> Define: 轉向時馬達的power </summary>
         public const int TURN_POWER = 50;
 
-        /** \brief Define: max power of motor */
+        /// <summary> Define: max power of motor </summary>
         public const int MAX_POWER = 255;
 
-        /** \brief Define: min power of motor */
+        /// <summary> Define: min power of motor </summary>
         public const int MIN_POWER = 30;
 
-        /** \brief Define: max angle value of motor */
+        /// <summary> Define: max angle value of motor </summary>
         public const int MAX_ANGLE_OFFSET_MOTOR = 70;
 
-        /** \brief Define: max angle value of path */
+        /// <summary> Define: max angle value of path </summary>
         public const int MAX_ANGLE_OFFSET_PATH = 70;
 
-        /** \brief 判斷想要的角度跟感測器回傳的角度是否差距過大的閥值 */
+        /// <summary> 判斷想要的角度跟感測器回傳的角度是否差距過大的閥值 </summary>
         public const int DELTA_ANGLE_TH = 40;
 
-        /** \brief Motor Control configure */
+        /// <summary> Motor Control configure </summary>
         public rtMotor_Cfg tMotorCfg;
 
-        /** \brief Motor Control Data */
+        /// <summary> Motor Control Data </summary>
         public rtMotor_Data tMotorData;
 
-        /** \brief 自轉時記錄車身是否已轉正 */
+        /// <summary> 自轉時記錄車身是否已轉正 </summary>
         bool bAlignmentCarAngleMatch;
 
 #if rtAGV_DEBUG_PREDICT
-        /** \brief Output Data: 預測下次的位置資訊*/
+        /// <summary> Output Data: 預測下次的位置資訊</summary>
         public rtVector tNextPositionTest;
 
-        /** \brief Output Data: 預測counter*/
+        /// <summary> Output Data: 預測counter</summary>
         public int lCntTest = 0;
 
-        /** \brief Output Data: 預測error*/
+        /// <summary> Output Data: 預測error</summary>
         public double ePredictErrorTest = 0;
 
+        /// <summary> test function for coordinate predict </summary>
+        /// <param name="a_tCarData">[IN] car data information </param>
+        /// <param name="a_CMotorInfo">[IN] motor control class </param>
         public static void Test_Predict(rtCarData a_tCarData, ref rtMotorCtrl a_CMotorInfo)
         {
             if (a_CMotorInfo.lCntTest > 0)
@@ -286,6 +300,7 @@ namespace PLC_Control
         }
 #endif
 
+        /// <summary> constructor function </summary>
         public rtMotorCtrl()
         {
             // Load default configure
@@ -297,6 +312,12 @@ namespace PLC_Control
             bAlignmentCarAngleMatch = false;
         }
 
+
+        /// <summary> distance error calculate during Straight mode </summary>
+        /// <param name="a_atPathInfo">[IN] entire path data for navigate </param>
+        /// <param name="a_tPosition">[IN] current car position </param>
+        /// <param name="a_lPathNodeIndex">[IN] index of current path </param>
+        /// <returns> distance error </returns>
         public static double MotorPower_StraightErrorCal(rtPath_Info[] a_atPathInfo, rtVector a_tPosition, int a_lPathNodeIndex)
         {
             double eErrorCurrent = 0;
@@ -336,6 +357,11 @@ namespace PLC_Control
             return eErrorCurrent;
         }
 
+        /// <summary> calculate distance to the destination </summary>
+        /// <param name="a_atPathInfo">[IN] entire path data for navigate </param>
+        /// <param name="a_tPosition">[IN] current car position </param>
+        /// <param name="a_lPathNodeIndex">[IN] index of current path </param>
+        /// <returns> distance to the destination </returns>
         public static double Distance2PathDestCal(rtPath_Info[] a_atPathInfo, rtVector a_tPosition, int a_lPathNodeIndex)
         {
             double eErrorCurrent = 0, eTheta = 0;
@@ -381,7 +407,10 @@ namespace PLC_Control
             return eErrorCurrent;
         }
 
-        /* 判斷從線開始到終點是否屬於一直線 */
+        /// <summary> 判斷從線開始到終點是否屬於一直線 (中途是否有過大的轉彎) </summary>
+        /// <param name="a_atPathInfo">[IN] entire path data for navigate </param>
+        /// <param name="a_lPathNodeIndex">[IN] index of current path </param>
+        /// <returns> true: 沒過大的轉彎 false: 中間會有大轉彎 </returns>
         public static bool Link2DestCheck(rtPath_Info[] a_atPathInfo, int a_lPathNodeIndex)
         {
             rtVector tV_C2D;        // current point to destination
@@ -407,6 +436,10 @@ namespace PLC_Control
             return true;
         }
 
+        /// <summary> check if car need to BackWard </summary>
+        /// <param name="a_atPathInfo">[IN] entire path data for navigate </param>
+        /// <param name="a_eCarAngle">[IN] direction of car </param>
+        /// <returns> true: need false: do not need </returns>
         public static bool BackWardVerify(rtPath_Info a_tPathInfo, double a_eCarAngle)
         {
             double eDeltaAngle = 0;
@@ -426,6 +459,11 @@ namespace PLC_Control
             return false;
         }
 
+        /// <summary> check if car over destination  </summary>
+        /// <param name="a_atPathInfo">[IN] entire path data for navigate </param>
+        /// <param name="a_tPosition">[IN] Position of car </param>
+        /// <param name="a_lPathNodeIndex">[IN] index of ccurrent path </param>
+        /// <returns> true: yes false: no </returns>
         public static bool OverDestination(rtPath_Info[] a_atPathInfo, rtVector a_tPosition, int a_lPathNodeIndex)
         {
             double eTheta = 0;
@@ -447,6 +485,10 @@ namespace PLC_Control
             return false;
         }
 
+        /// <summary> motor power calculate during Turn mode </summary>
+        /// <param name="a_tPathInfo">[IN] path data for navigate </param>
+        /// <param name="a_eCarAngle">[IN] direction of car </param>
+        /// <returns> power value </returns>
         public static double MotorPower_TurnErrorCal(rtPath_Info a_tPathInfo, double a_eCarAngle)
         {
             double eTheta = 0;
@@ -464,6 +506,11 @@ namespace PLC_Control
             return eTheta;
         }
 
+        /// <summary> Distance Modify For Path Offset </summary>
+        /// <param name="a_tPathInfo">[IN] path data for navigate </param>
+        /// <param name="a_tPosition">[IN] Position of car </param>
+        /// <param name="a_eDistanceOri">[IN] Original Distance </param>
+        /// <returns> modified diatance </returns>
         public double DistanceModifyForPathOffset(rtPath_Info a_tPathInfo, rtVector a_tPosition, double a_eDistanceOri)
         {
             double eDistance = 0, eTheta = 0, eDistanceD2C = 0, eDistanceProject = 0;
@@ -492,6 +539,10 @@ namespace PLC_Control
             return eDistance;
         }
 
+
+        /// <summary> control during car direction aligment </summary>
+        /// <param name="a_atPathInfo">[IN] path data for navigate </param>
+        /// <param name="a_tCarData">[IN] data of car </param>
         public void Motor_CtrlNavigateAligment(rtPath_Info[] a_atPathInfo, rtCarData a_tCarData)
         {
             bool bAlignment = false;
@@ -535,6 +586,9 @@ namespace PLC_Control
             tMotorData.eDistance2Dest = eErrorCurrent;
         }
 
+        /// <summary> power control during Smooth Turn mode </summary>
+        /// <param name="a_atPathInfo">[IN] path data for navigate </param>
+        /// <param name="a_tCarData">[IN] data of car </param>
         public void MotorPower_CtrlNavigateSmoothTurn(rtPath_Info[] a_atPathInfo, rtCarData a_tCarData)
         {   // 轉彎狀態
             bool bOutFlag = false;
@@ -572,6 +626,9 @@ namespace PLC_Control
             }
         }
 
+        /// <summary> power control during Straight mode </summary>
+        /// <param name="a_atPathInfo">[IN] path data for navigate </param>
+        /// <param name="a_tCarData">[IN] data of car </param>
         public void MotorPower_CtrlNavigateStraight(rtPath_Info[] a_atPathInfo, rtCarData a_tCarData)
         {   // 直走狀態
             double eErrorCurrent = 0, eDistanceMotor2Dest = 0, eDistanceTurn = 0;
@@ -665,7 +722,10 @@ namespace PLC_Control
         }
 
 
-        /** \brief 誤差為點到路徑的距離: 點可順時鐘轉至路徑為正 否則為負 */
+        /// <summary> 誤差為點到路徑的距離: 點可順時鐘轉至路徑為正 否則為負 </summary>
+        /// <param name="a_tPathInfo">[IN] path data for navigate </param>
+        /// <param name="a_tPosition">[IN] position of car </param>
+        /// <returns> distance error </returns>
         public static double PathErrorCal_Straight(rtPath_Info a_tPathInfo, rtVector a_tPosition)
         {
             double eErrorCurrent = 0, eCross = 0;
@@ -693,6 +753,11 @@ namespace PLC_Control
             return eErrorCurrent;
         }
 
+
+        /// <summary> check the direction car should turn </summary>
+        /// <param name="a_atPathInfo">[IN] path data for navigate </param>
+        /// <param name="a_lPathNodeIndex">[IN] index of current path </param>
+        /// <returns> CAR_TURN_RIGHT: need turn right CAR_TURN_LEFT: need turn left  ERROR: error </returns>
         public static int TurnDirectionCal(rtPath_Info[] a_atPathInfo, int a_lPathNodeIndex)
         {
             int lTurnDirection = 0;
@@ -724,6 +789,10 @@ namespace PLC_Control
             return lTurnDirection;
         }
 
+        /// <summary> Calculate Rotation Center And Radius for turn </summary>
+        /// <param name="a_atPathInfo">[IN] path data for navigate </param>
+        /// <param name="a_lRotationDistance">[IN] Rotation Distance </param>
+        /// <param name="a_tMotorData">[INOUT] motor output data </param>
         public static void RotationCenterAndRadiusCal(rtPath_Info[] a_atPathInfo, int a_lRotationDistance, ref rtMotor_Data a_tMotorData)
         {
             int lPathIndex = 0;
@@ -758,6 +827,12 @@ namespace PLC_Control
             a_tMotorData.lTurnRadius = (int)Math.Round(rtVectorOP_2D.GetDistance(tTurnStart, a_tMotorData.tTurnCenter));
         }
 
+        /// <summary> Check if car Finish Smooth Turn </summary>
+        /// <param name="a_lPathIndex">[IN] index of current path </param>
+        /// <param name="a_lRotationDistance">[IN] Rotation Distance </param>
+        /// <param name="a_atPathInfo">[IN] path data for navigate </param>
+        /// <param name="a_tCarPostition">[IN] car position </param>
+        /// <param name="a_tRotateCenter">[IN] Rotate Center </param>
         public static bool FinishSmoothTurnCheck(
             int a_lPathIndex, int a_lRotationDistance,
             rtPath_Info[] a_atPathInfo, rtVector a_tCarPostition, rtVector a_tRotateCenter)
@@ -790,6 +865,14 @@ namespace PLC_Control
             return bResult;
         }
 
+
+        /// <summary> calculate error of turn  </summary>
+        /// <param name="a_tPathInfo">[IN] path data for navigate </param>
+        /// <param name="a_tPosition">[IN] car position </param>
+        /// <param name="a_tTurnCenter">[IN] turn Center </param>
+        /// <param name="a_lTurnRadius">[IN] turn Radius </param>
+        /// <param name="a_lTurnDirection">[IN] turn Direction </param>
+        /// <returns> error of turn </returns>
         public static double MotorAngle_TurnErrorCal(
             rtPath_Info a_tPathInfo, rtVector a_tPosition,
             rtVector a_tTurnCenter, int a_lTurnRadius, int a_lTurnDirection)
@@ -820,6 +903,12 @@ namespace PLC_Control
             return eErrorCurrent;
         }
 
+        /// <summary> calculate path error of turn  </summary>
+        /// <param name="a_tPathInfo">[IN] path data for navigate </param>
+        /// <param name="a_tPosition">[IN] car position </param>
+        /// <param name="a_tTurnCenter">[IN] turn Center </param>
+        /// <param name="a_lTurnRadius">[IN] turn Radius </param>
+        /// <returns> path error of turn </returns>
         public static double PathErrorCal_Turn(
             rtPath_Info a_tPathInfo, rtVector a_tPosition,
             rtVector a_tTurnCenter, int a_lTurnRadius)
@@ -851,6 +940,9 @@ namespace PLC_Control
             return eErrorCurrent;
         }
 
+        /// <summary> calculate Car Center Speed  </summary>
+        /// <param name="a_tCarData">[IN] data for car </param>
+        /// <returns> Car Center Speed </returns>
         public static double CarCenterSpeedCal(rtCarData a_tCarData)
         {
             double eSpeed = 0, eTheta = 0, eT = 0;
@@ -902,6 +994,12 @@ namespace PLC_Control
             return eSpeed;
         }
 
+        /// <summary> Motion Predict of coordinate  </summary>
+        /// <param name="a_tCarData">[IN] data for car </param>
+        /// <param name="a_CMotorInfo">[IN] motor control class </param>
+        /// <param name="a_eDeltaTime">[IN] the time interval </param>
+        /// <param name="a_tCarCoordinate">[OUT] predicted coordinate </param>
+        /// <param name="a_eCarAngle">[IN] car direction </param>
         public static void Motion_Predict(rtCarData a_tCarData, rtMotorCtrl a_CMotorInfo, double a_eDeltaTime, out rtVector a_tCarCoordinate, out double a_eCarAngle)
         {
             a_eCarAngle = 0;
@@ -910,6 +1008,12 @@ namespace PLC_Control
             a_eCarAngle = a_tCarData.eAngle + a_CMotorInfo.tMotorData.eDeltaAngle;
         }
 
+        /// <summary> Motion Predict by coordinate rotation on 2D plan  </summary>
+        /// <param name="a_CurrentPos">[IN] data for car </param>
+        /// <param name="a_tCarData">[IN] car data </param>
+        /// <param name="a_CMotorInfo">[IN] motor control class </param>
+        /// <param name="a_eDeltaTime">[IN] the time interval </param>
+        /// <returns> predicted coordinate </returns>
         public static rtVector Coordinate_Predict(rtVector a_CurrentPos, rtCarData a_tCarData, rtMotorCtrl a_CMotorInfo, double a_eDeltaTime)
         {
             double eDistance = 0, eAngle = 0, eTheta = 0, eSpeed = 0, eT = 0, ePhi = 0, ePhiRad = 0;
@@ -1000,6 +1104,11 @@ namespace PLC_Control
             return tNextPosition;
         }
 
+
+        /// <summary> Target Angle Calculation  </summary>
+        /// <param name="a_tCarData">[IN] car data </param>
+        /// <param name="a_lTurnRadius">[IN] Turn Radius </param>
+        /// <returns> Target Angle of car </returns>
         public static double TargetAngle_Cal(rtCarData a_tCarData, int a_lTurnRadius)
         {
             double eTargetAngle = 0, eLengthM2C = 0, eTanTheta = 0;
@@ -1012,11 +1121,17 @@ namespace PLC_Control
             return eTargetAngle;
         }
 
+        /// <summary> Reset Car Alignment Flag  </summary>
         public void ResetCarAlignmentFlag()
         {
             bAlignmentCarAngleMatch = false;
         }
 
+
+        /// <summary> Car direction Alignment  </summary>
+        /// <param name="a_eTargetAngle">[IN] Target Angle of car </param>
+        /// <param name="a_tCarData">[IN] car data </param>
+        /// <returns> true: finish false: not yet </returns>
         public bool CarAngleAlignment(double a_eTargetAngle, rtCarData a_tCarData)
         {
             bool bMatched = false;
@@ -1072,6 +1187,11 @@ namespace PLC_Control
             return bMatched;
         }
 
+
+        /// <summary> Path Angle Offset Calculation  </summary>
+        /// <param name="a_eDistance">[IN] distance to the path </param>
+        /// <param name="a_tPID_ThetaOffsetCoe">[IN] PID Coe </param>
+        /// <returns> angle Offset </returns>
         public static double PathAngleOffsetCal(double a_eDistance, rtPID_Coefficient a_tPID_ThetaOffsetCoe)
         {
             double eThetaOffset = 0;
@@ -1093,6 +1213,12 @@ namespace PLC_Control
             return eThetaOffset;
         }
 
+
+        /// <summary> Motor Angle Calculation: find out how to control wheel direction  </summary>
+        /// <param name="a_eDeltaCarAngle">[IN] Car Angle offset to wanted direction </param>
+        /// <param name="a_eCarSpeed">[IN] Car Speed </param>
+        /// <param name="a_tPID_MotorAngleCoe">[IN] PID Coe of dorection control </param>
+        /// <returns> Motor Angle </returns>
         public static double MotorAngleCal(double a_eDeltaCarAngle, double a_eCarSpeed, rtPID_Coefficient a_tPID_MotorAngleCoe)
         {   // 目前不考慮 車速的因素
             double MotorAngle = 0;
@@ -1108,6 +1234,11 @@ namespace PLC_Control
             return MotorAngle;
         }
 
+        /// <summary> Target Angle Offset Modify by car speed  </summary>
+        /// <param name="a_eDistanceEroor">[IN] diatance to the path </param>
+        /// <param name="a_eCenterSpeed">[IN] Car Speed </param>
+        /// <param name="a_eTargetAngleOffset">[IN] Target Angle Offset </param>
+        /// <returns> modified Target Angle Offset </returns>
         public static double TargetAngleOffsetModify(double a_eDistanceEroor, double a_eCenterSpeed, double a_eTargetAngleOffset)
         {
             double eAbsDistanceEroor = 0, eLength = 0, eLengthModify = 0, eAbsTargetAngleOffset = 0, eModifiedAngleOffset = 0;
@@ -1143,6 +1274,9 @@ namespace PLC_Control
             return eModifiedAngleOffset;
         }
 
+        /// <summary> Path Offset Calculate  </summary>
+        /// <param name="a_atPathInfo">[IN] information of path </param>
+        /// <param name="a_eDestDirection">[IN] Destination Direction </param>
         public void PathOffsetCal(rtPath_Info[] a_atPathInfo, double a_eDestDirection)
         {
             int lPathIndex = 0;
@@ -1174,6 +1308,11 @@ namespace PLC_Control
             }
         }
 
+        /// <summary> Determine Path Vector in Turn Mode  </summary>
+        /// <param name="a_tPosition">[IN] car position </param>
+        /// <param name="a_tTurnCenter">[IN] Turn Center </param>
+        /// <param name="a_lTurnDirection">[IN] Turn Direction </param>
+        /// <returns> Path Vector </returns>
         public rtVector PathVectorDetermine_TurnMode(rtVector a_tPosition, rtVector a_tTurnCenter, int a_lTurnDirection)
         {
             rtVector tPathVector = new rtVector();
@@ -1197,6 +1336,9 @@ namespace PLC_Control
             return tPathVector;
         }
 
+        /// <summary> Determine Motor Angle during Smooth Turn  </summary>
+        /// <param name="a_atPathInfo">[IN] information of path </param>
+        /// <param name="a_tCarData">[IN] car data </param>
         public void MotorAngle_CtrlNavigateSmoothTurn(rtPath_Info[] a_atPathInfo, rtCarData a_tCarData)
         {
             double eDistance = 0, eThetaError = 0, eCarAngle = 0, eMotorAngleOffset = 0, eMototAngleTmp = 0;
@@ -1249,6 +1391,9 @@ namespace PLC_Control
             }
         }
 
+        /// <summary> Determine Motor Angle Straight mode  </summary>
+        /// <param name="a_atPathInfo">[IN] information of path </param>
+        /// <param name="a_tCarData">[IN] car data </param>
         public void MotorAngle_CtrlNavigateStraight(rtPath_Info[] a_atPathInfo, rtCarData a_tCarData)
         {
             double eDistance = 0, eThetaError = 0, eCarAngle = 0, eMotorAngleOffset = 0, eMototAngleTmp = 0;
@@ -1288,6 +1433,10 @@ namespace PLC_Control
             }
         }
 
+        /// <summary> Determine Motor Angle By Path Error  </summary>
+        /// <param name="a_tPathVector">[IN] Path Vector </param>
+        /// <param name="a_tCarData">[IN] car data </param>
+        /// <returns> Motor Angle </returns>
         public double DedtermineMotorAngleByPathError(rtVector a_tPathVector, rtCarData a_tCarData)
         {
             double eMototAngle = 0, eTargetCarAngleOffset = 0, eCarCenterSpeed = 0, eDeltaCarAngle = 0, eCarAngle = 0;
@@ -1338,6 +1487,7 @@ namespace PLC_Control
         }
     }
 
+    /// <summary> struct of Fork Control Data  </summary>
     public struct rtForkCtrl_Data
     {
         public byte ucStatus;
@@ -1348,6 +1498,7 @@ namespace PLC_Control
 
         public bool bEnable;
 
+        /// <summary> init struct of Fork Control Data  </summary>
         public void Init()
         {
             ucStatus = (byte)rtForkCtrl.ForkStatus.NULL;
@@ -1357,26 +1508,28 @@ namespace PLC_Control
         }
     }
 
+    /// <summary> core class of Fork Control  </summary>
     public class rtForkCtrl
     {
-        /** \brief 堆高機貨叉狀態宣告 */
+        /// <summary> 堆高機貨叉狀態宣告 </summary>
         public enum ForkStatus { NULL, ALIMENT, SET_HEIGHT, FORTH, BACKWARD, PICKUP, PICKDOWN, RESET_HEIGHT, FINISH, ERROR, SET_DEPTH, RESET_DEPTH, ALIMENT_FORTH };
 
-        /** \brief 堆高機貨叉動作模式 */
+        /// <summary> 堆高機貨叉動作模式 </summary>
         public enum ForkActionMode { LOAD = 0,UNLOAD = 1};
 
-        /** \brief Define: 判斷是否到達要的高度跟深度 */
+        /// <summary> Define: 判斷是否到達要的高度跟深度 </summary>
         public const double FORK_MATCH_TH = 2;
 
-        /** \brief Define: 貨叉最大深度 */
+        /// <summary> Define: 貨叉最大深度 </summary>
         public const int FORK_MAX_DEPTH = 4500;
 
-        /** \brief Define: 貨叉舉起高度 */
+        /// <summary> Define: 貨叉舉起高度 </summary>
         public const int FORK_PICKUP_HEIGHT = 10;
 
-        /** \brief Fork Control Data */
+        /// <summary> Fork Control Data </summary>
         public rtForkCtrl_Data tForkData;
 
+        /// <summary> construct function  </summary>
         public rtForkCtrl()
         {
             tForkData.Init();

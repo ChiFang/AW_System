@@ -17,18 +17,20 @@ using System.Text;
 
 namespace rtAGV_Sys
 {
+    /// <summary> 
+    /// the configure struct of Car spec</summary> 
     public struct rtCarCFG
     {
-        /** \brief Define: 兩輪中心到後輪距離 */
+        /// <summary> Define: 兩輪中心到後輪距離 </summary>
         public const int CAR_LENGTH = 1500;
 
-        /** \brief Define: 兩輪距離 */
+        /// <summary> Define: 兩輪距離 </summary>
         public const int CAR_WIDTH_WHEEL = 1140;
 
-        /** \brief 兩輪中心到後輪距離 */
+        /// <summary> 兩輪中心到後輪距離 </summary>
         public int lLength;
 
-        /** \brief 兩輪距離 */
+        /// <summary> 兩輪距離 </summary>
         public int lWidth;
 
         public void LoadDefault()
@@ -38,23 +40,29 @@ namespace rtAGV_Sys
         }
     }
 
+    /// <summary> 
+    /// the configure struct of AGV system </summary> 
+    /// <remarks> 
+    /// this configure include part of  Map, Car and Motor setting </remarks> 
     public struct rtAGV_CFG
     {
-        /** \brief Goods Infomation of each one >> 貨架設定*/
+        /// <summary> Goods Infomation of each one >> 貨架設定</summary>
         public rtWarehousingInfo[][] atWarehousingCfg;
 
-        /** \brief Map 地圖設定 */
+        /// <summary> Map 地圖設定 </summary>
         public rtAGV_MAP tMapCfg;
 
-        /** \brief Region Cfg 區域範圍設定*/
+        /// <summary> Region Cfg 區域範圍設定</summary>
         public ROI[] atRegionCfg;
 
-        /** \brief Spec of AGV car 車身規格設定 */
+        /// <summary> Spec of AGV car 車身規格設定 </summary>
         public rtCarCFG tCarCfg;
 
-        /** \brief 車輪馬達控制參數設定設定 */
+        /// <summary> 車輪馬達控制參數設定設定 </summary>
         public rtMotor_Cfg tMotorCtrlCfg;
 
+        /// <summary> 
+        /// load default setting of AGV Configure </summary>
         public void LoadDefault()
         {
             atWarehousingCfg = new rtWarehousingInfo[0][];
@@ -66,53 +74,60 @@ namespace rtAGV_Sys
         }
     }
 
+
+    /// <summary> 
+    /// the struct of AGV Sensor Data </summary>
     public struct rtAGV_SensorData
     {
-        /** \brief 光達資料 */
+        /// <summary> 光達資料 </summary>
         public double[] aeLiDarData;
 
-        /** \brief 定位座標 */
+        /// <summary> 定位座標 </summary>
         public rtVector tPosition;
 
-        /** \brief 定位方向 */
+        /// <summary> 定位方向 </summary>
         public double eDirection;
 
-        /** \brief Left Wheel Speed */
+        /// <summary> Left Wheel Speed </summary>
         public double eLeftWheelSpeed;
 
-        /** \brief Right Wheel Speed */
+        /// <summary> Right Wheel Speed </summary>
         public double eRightWheelSpeed;
 
-        /** \brief Fork Input Data */
+        /// <summary> Fork Input Data </summary>
         public rtForkCtrl_Data tForkInputData;
     }
 
+    /// <summary> 
+    /// the struct of AGV output Data </summary>
     public struct rtAGV_Data
     {
-        /** \brief 有障礙物狀況時需要的flag */
+        /// <summary> 有障礙物狀況時需要的flag </summary>
         public bool bEmergency;
 
-        /** \brief 導航算出來的路徑 */
+        /// <summary> 導航算出來的路徑 </summary>
         public rtPath_Info[] atPathInfo;
 
-        /** \brief 叉貨的路徑 */
+        /// <summary> 叉貨的路徑 </summary>
         public rtPath_Info[] atPathInfoForkForth;
 
-        /** \brief Motor data 馬達相關數值 */
+        /// <summary> Motor data 馬達相關數值 </summary>
         public rtMotorCtrl CMotor;
 
-        /** \brief Fork data 貨叉相關數值 */
+        /// <summary> Fork data 貨叉相關數值 </summary>
         public rtForkCtrl CFork;
 
-        /** \brief 當下車子資訊 */
+        /// <summary> 當下車子資訊 </summary>
         public rtCarData tCarInfo;
 
-        /** \brief Output Data: AGV Status */
+        /// <summary> Output Data: AGV Status </summary>
         public byte ucAGV_Status;
 
-        /** \brief InOutput Data: Sensor Data */
+        /// <summary> InOutput Data: Sensor Data </summary>
         public rtAGV_SensorData tSensorData;
 
+        /// <summary> 
+        /// inital of AGV output data </summary>
         public void Init()
         {
             bEmergency = false;
@@ -125,77 +140,76 @@ namespace rtAGV_Sys
         }
     }
 
-    public class rtSensorReader
-    {
 
-        public rtSensorReader()
-        {
-
-        }
-
-        public static void rtReadSensorData(rtAGV_Control a_tAGV_Control)
-        {
-
-        }
-    }
-
+    /// <summary> 
+    /// core class of AGV system.</summary> 
+    /// <remarks> 
+    /// this module could excute cmd like deliver, load&unload goods even parking at assigned position </remarks> 
     public class rtAGV_Control
     {
         public enum rtAGVCmd { CMD_STOP = 0x00, CMD_DELIVER = 0x01, CMD_CONTINUE = 0x02, CMD_PAUSE = 0x03, CMD_RESET = 0x04, CMD_LOAD = 0x05, CMD_UNLOAD = 0x06, CMD_PARK = 0x07 };
 
         public enum rtAGVStatus { STANDBY, PAUSE, STOP, EMERGENCY_STOP, MOVE_TO_SRC, LOAD, MOVE_TO_DEST, UNLOAD, MOVE_TO_PARK, ERROR_NO_CFG, PARKING, ALIMENT};
 
-        /** \brief Define: 算路徑時判斷是否已在終點 */
+        /// <summary> Define: 算路徑時判斷是否已在終點 </summary>
         public const int ARRIVE_CHECK_NEAR = 50;
 
-        /** \brief Define: 算路徑時判斷是否還需行走才能到終點 */
+        /// <summary> Define: 算路徑時判斷是否還需行走才能到終點 </summary>
         public const int ARRIVE_CHECK_FAR = 2000;
 
-        /** \brief Define: 取貨後後退距離 */
+        /// <summary> Define: 取貨後後退距離 </summary>
         public const int STORAGE_BACK_DISTANCE = 900;
 
-        /** \brief Define: CMD shift bits */
+        /// <summary> Define: CMD shift bits </summary>
         public const ushort CMD = 56;
 
-        /** \brief Define: SRC_REGION shift bits */
+        /// <summary> Define: SRC_REGION shift bits </summary>
         public const ushort SRC_REGION = 48;
 
-        /** \brief Define: SRC_POSITION shift bits */
+        /// <summary> Define: SRC_POSITION shift bits </summary>
         public const ushort SRC_POSITION = 40;
 
-        /** \brief Define: DEST_REGION shift bits */
+        /// <summary> Define: DEST_REGION shift bits </summary>
         public const ushort DEST_REGION = 32;
 
-        /** \brief Define: DEST_POSITION shift bits */
+        /// <summary> Define: DEST_POSITION shift bits </summary>
         public const ushort DEST_POSITION = 24;
 
-        /** \brief Define: Aligment Safe Angle */
+        /// <summary> Define: Aligment Safe Angle </summary>
         public const ushort ALIGMENT_SAFE_ANGLE = 10;
 
-        /** \brief Define: mask of shift bits */
+        /// <summary> Define: mask of shift bits </summary>
         public const byte MASK = 0xFF;
 
-        /** \brief Input Data: AGV Command */
+        /// <summary> Input Data: AGV Command </summary>
         public ulong ullAGV_Cmd = 0;
 
-        /** \brief Configure: AGV Configure */
+        /// <summary> Configure: AGV Configure </summary>
         public rtAGV_CFG tAGV_Cfg;
 
-        /** \brief InOutput Data: AGV data */
+        /// <summary> InOutput Data: AGV data </summary>
         public rtAGV_Data tAGV_Data;
 
-        /** \brief Output Data: AGV Status Buffer for Pause */
+        /// <summary> Output Data: AGV Status Buffer for Pause </summary>
         byte ucAGV_StatusBuf;
 
-        public bool bCheckWheelAngle;
+        /// <summary> Output Data: check if Wheel Angle is safe </summary>
+        bool bCheckWheelAngle;
 
-        /** \brief 初始化用 建構函式 */
+        /// <summary> 初始化用 建構函式 </summary>
+        /// <summary>
+        /// AGV system initail function
+        /// </summary>
         public rtAGV_Control()
         {
             // 載入設定擋做初始化，設定擋名稱先hard code
             Reset(this);
         }
 
+        /// <summary>
+        /// Execute Cmd from wireless signal like WIFI
+        /// </summary>
+        /// <param name="a_ullAGV_Cmd">[IN] Input command</param>
         public void ExecuteCmd(ulong a_ullAGV_Cmd)
         {   // 有新命令且被接受才會 call
             uint ulAction = 0;
@@ -255,6 +269,13 @@ namespace rtAGV_Sys
             }
         }
 
+        /// <summary>
+        /// AGV Navigation function: include path planning, find out the path to the destination
+        /// </summary>
+        /// <param name="a_tLocatData">[IN] destination position</param>
+        /// <param name="a_atObstacle">[IN] Obstacle information </param>
+        /// <param name="a_bPark">[IN] Park request: False: do not need True: need </param>
+        /// <returns> Navigation result -1:error  0: do not need to move 1: nothing wrong </returns>
         public int rtAGV_Navigation(rtWarehousingInfo a_tLocatData, ROI[] a_atObstacle, bool a_bPark)
         {   // 沒路徑 離終點太近無法校正等都會回傳-1 表示錯誤
             int lCheckResult = 1;
@@ -294,6 +315,13 @@ namespace rtAGV_Sys
             return lCheckResult;
         }
 
+
+        /// <summary>
+        /// AGV motor(wheel) control function
+        /// </summary>
+        /// <param name="a_atPathInfo">[IN] path by navigation</param>
+        /// <param name="a_eDirection">[IN] Warehouse's Direction </param>
+        /// <param name="a_bAligmentFree">[IN] Aligment request: False: need aligment True: do not need </param>
         public void rtAGV_MotorCtrl(ref rtPath_Info[] a_atPathInfo, double a_eDirection, bool a_bAligmentFree)
         {   // 一定要傳path 因為 path 不一定是agv裡面送貨用的 有可能是 取放貨時前進後退用的
             double eTargetAngle = 0, eTargetError = 0, eWheelTheta = 0;
@@ -404,6 +432,11 @@ namespace rtAGV_Sys
 
         }
 
+        /// <summary>
+        /// Extend Path Size(Length)
+        /// </summary>
+        /// <param name="a_tPathInfo">[INOUT] path by navigation </param>
+        /// <param name="a_lExtendSize">[IN] Extend Size </param>
         static void ExtendPathSize(ref rtPath_Info a_tPathInfo, int a_lExtendSize)
         {
             rtVector tDirection = new rtVector();
@@ -411,6 +444,13 @@ namespace rtAGV_Sys
             a_tPathInfo.tDest = rtVectorOP_2D.ExtendPointAlongVector(a_tPathInfo.tDest, tDirection, a_lExtendSize);
         }
 
+        /// <summary>
+        /// Modify path for storage avoiding collision
+        /// </summary>
+        /// <param name="a_atPathInfo">[INOUT] path by navigation </param>
+        /// <param name="a_tCarData">[IN] car information </param>
+        /// <param name="a_eDestDirection">[IN] Warehouse's Direction </param>
+        /// <param name="a_bPark">[IN] Park request: False: do not need True: need </param>
         public static void PathModifyForStorage(ref rtPath_Info[] a_atPathInfo, rtCarData a_tCarData, double a_eDestDirection, bool a_bPark)
         {
             int lCnt = 0, lFinalPathIndex = 0, lCntFix = 0, lLastPathIndex;
@@ -470,6 +510,10 @@ namespace rtAGV_Sys
             }
         }
 
+        /// <summary>
+        /// AGV Reset function
+        /// </summary>
+        /// <param name="a_tAGV">[INOUT] AGV system class </param>
         public static void Reset(rtAGV_Control a_tAGV)
         {
             a_tAGV.ullAGV_Cmd = 0x00;
@@ -477,16 +521,27 @@ namespace rtAGV_Sys
             a_tAGV.tAGV_Data.Init();
         }
 
+        /// <summary>
+        /// AGV Reset function for "Standby": clear system data for waiting next command
+        /// </summary>
+        /// <param name="a_tAGV">[INOUT] AGV system class </param>
         public static void ResetForStandby(rtAGV_Control a_tAGV)
         {
             a_tAGV.tAGV_Data.Init();
         }
 
+
+        /// <summary>
+        /// AGV continue function for excuting last command before "pause"
+        /// </summary>
         public void Continue()
         {
             ExecuteCmd(ullAGV_Cmd);
         }
 
+        /// <summary>
+        /// AGV pause function for "pause", user could "Continue" or "Stop" for standby
+        /// </summary>
         public void Pause()
         {
             // 停止車上任何會導致車子動作的訊號
@@ -495,7 +550,11 @@ namespace rtAGV_Sys
             tAGV_Data.CMotor.tMotorData.lMotorTorsion = 0;
         }
 
-
+        /// <summary>
+        /// control all signal of car for moving to the destination
+        /// </summary>
+        /// <param name="a_tWarehousPos">[IN] wanted warehouse's position </param>
+        /// <param name="a_bPark">[IN] Park request: False: do not need True: need </param>
         public void MoveToAssignedPosition(WarehousPos a_tWarehousPos, bool a_bPark)
         {
             while (tAGV_Data.CMotor.tMotorData.bFinishFlag == false && tAGV_Data.bEmergency == false)
@@ -509,6 +568,11 @@ namespace rtAGV_Sys
             tAGV_Data.CMotor = new rtMotorCtrl();
         }
 
+        /// <summary>
+        /// Swap function for all type: it will swap Variable 1 and Variable 2
+        /// </summary>
+        /// <param name="a_tVar_1">[INOUT] Variable 1 </param>
+        /// <param name="a_tVar_2">[INOUT] Variable 2 </param>
         static void Swap<T>(ref T a_tVar_1, ref T a_tVar_2)
         {
             T tVarTmp = a_tVar_1;
@@ -516,6 +580,10 @@ namespace rtAGV_Sys
             a_tVar_2 = tVarTmp;
         }
 
+        /// <summary>
+        /// Obtain Warehouse information like Position and direction from command 
+        /// </summary>
+        /// <param name="a_bMode">[IN] true: LOAD false: UNLOAD </param>
         public WarehousPos ObtainWarehousPosition(bool a_bMode)
         {
             WarehousPos tWarehousPos = new WarehousPos();
@@ -538,6 +606,9 @@ namespace rtAGV_Sys
             return tWarehousPos;
         }
 
+        /// <summary>
+        /// Park command: AGV will park at assigned position 
+        /// </summary>
         public void Park()
         {
             bool bBreak = false, bDone = false;
@@ -626,6 +697,9 @@ namespace rtAGV_Sys
             }
         }
 
+        /// <summary>
+        /// load command: AGV will move to assigned position and load goods 
+        /// </summary>
         public void LoadGoods()
         {
             bool bBreak = false;
@@ -678,6 +752,9 @@ namespace rtAGV_Sys
             }
         }
 
+        /// <summary>
+        /// unload command: AGV will move to assigned position and unload goods 
+        /// </summary>
         public void UnLoadGoods()
         {
             bool bBreak = false;
@@ -732,6 +809,9 @@ namespace rtAGV_Sys
             }
         }
 
+        /// <summary>
+        /// unload command: AGV will move to assigned position and unload goods 
+        /// </summary>
         public void Deliver()
         {
             bool bBreak = false;
@@ -817,21 +897,24 @@ namespace rtAGV_Sys
             }
         }
 
-        public static rtAGV_SensorData ReadSensorData()
-        {
-            rtAGV_SensorData tSensorData = new rtAGV_SensorData();   // 感應器資料
-
-            return tSensorData;
-        }
-
-
+        /// <summary>
+        /// Obstacle Avoidance: if there are Obstacle, return "true"
+        /// </summary>
+        /// <param name="a_atObstacle">[IN] Obstacle information</param>
+        /// <returns> if there are Obstacle, return "true" else return "false" </returns>
         public bool ObstacleAvoidance(ref ROI[] a_atObstacle)
         {
             bool bEmergencyFlag = false;         
 
             return bEmergencyFlag;
         }
-        
+
+        /// <summary>
+        /// Arrive Check for path verifying
+        /// </summary>
+        /// <param name="a_atPathInfo">[IN] Path Information</param>
+        /// <param name="a_LocatData">[IN] destination Information</param>
+        /// <returns> 0: close enough 1: nothing wrong -1: error </returns>
         private int ArriveCheck(rtPath_Info[] a_atPathInfo, rtWarehousingInfo a_LocatData)
         {
             double eDistance = 0;
@@ -862,6 +945,12 @@ namespace rtAGV_Sys
             }
         }
 
+
+        /// <summary>
+        /// Auto Navigate function: include path planning and motor control
+        /// </summary>
+        /// <param name="a_tWarehousPos">[IN] destination Information </param>
+        /// <param name="a_bPark">[IN] Park request: False: do not need True: need </param>
         public void AutoNavigate(WarehousPos a_tWarehousPos, bool a_bPark)
         {
             rtWarehousingInfo LocatData;    // 目的地
@@ -899,6 +988,12 @@ namespace rtAGV_Sys
             }
         }
 
+
+        /// <summary>
+        /// Auto Navigate function: include path planning and motor control
+        /// </summary>
+        /// <param name="a_tWarehousPos">[IN] destination Information </param>
+        /// <param name="a_bPark">[IN] Park request: False: do not need True: need </param>
         bool ForkActionFinishCheck()
         {
             double eDiffHeight = 0, eDiffDepth = 0;
@@ -921,6 +1016,10 @@ namespace rtAGV_Sys
             }
         }
 
+        /// <summary>
+        /// Storage function: include load & unload action by control motor and fork
+        /// </summary>
+        /// <param name="a_tWarehousPos">[IN] destination Information </param>
         public void Storage(WarehousPos a_tWarehousPos)
         {
             bool bDone;
@@ -1108,6 +1207,9 @@ namespace rtAGV_Sys
             }
         }
 
+        /// <summary>
+        /// Emergency Stop function: Stop car for Emergency
+        /// </summary>
         public void EmergencyStop()
         {
             // 初始化 motor & fork control Class
@@ -1119,25 +1221,25 @@ namespace rtAGV_Sys
 	
 	public class rtAGV_communicate
 	{
-        /** \brief 連線到Server的IP */
+        /// <summary> 連線到Server的IP </summary>
         public string ServerIP;
 
-        /** \brief 連線到Server的Port */
+        /// <summary> 連線到Server的Port </summary>
         public int Port;
 
-        /** \brief Sock連線參數 */
+        /// <summary> Sock連線參數 </summary>
         public Socket sender_TCP;
 
-        /** \brief 接收到的Data buffer */
+        /// <summary> 接收到的Data buffer </summary>
         public byte[] Receivebytes = new byte[1024];
 
-        /** \brief 傳送的Data buffer */
+        /// <summary> 傳送的Data buffer </summary>
         public byte[] Sendbytes;
 
-        /** \brief 解析到的Command */
+        /// <summary> 解析到的Command </summary>
         public ulong ReceiveCommand;
 
-        /** \brief InOutput Data: AGV data */
+        /// <summary> InOutput Data: AGV data </summary>
         public rtAGV_Data tAGV_Data;
 
         public bool ConnectToServerFunc()

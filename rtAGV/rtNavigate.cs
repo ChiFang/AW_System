@@ -9,14 +9,23 @@ using rtAGV_Common;
 
 namespace rtAGV_Navigate
 {
+    /// <summary> core class of Path Planning  </summary>
     public class rtPathPlanning
     {
-        /** \brief Define: 最大路徑結點數 */
+        /// <summary> Define: 最大路徑結點數 </summary>
         public const int MAX_PATH_NODE_NUMBER = 100;
 
-        /** \brief Define: 空資料 */
+        /// <summary> Define: 空資料 </summary>
         public const int EMPTY_DATA = 99999;
 
+        /// <summary> Path Planning for AGV navigation </summary>
+        /// <param name="a_tMap">[IN] map for navigation </param>
+        /// <param name="a_atWarehousingInfo">[IN] Warehouse Information </param>
+        /// <param name="a_atRegionCfg">[IN] region configure </param>
+        /// <param name="a_atPathInfo">[INOUT] Path data </param>
+        /// <param name="a_tCarInfo">[IN] car data </param>
+        /// <param name="a_tDestData">[IN] Destination data </param>
+        /// <param name="a_atObstacle">[IN] Obstacle data </param>
         public static void rtAGV_PathPlanning(
             rtAGV_MAP a_tMap, rtWarehousingInfo[][] a_atWarehousingInfo, ROI[] a_atRegionCfg, 
             ref rtPath_Info[] a_atPathInfo, ref rtCarData a_tCarInfo, rtWarehousingInfo a_tDestData, ROI[] a_atObstacle)
@@ -54,6 +63,11 @@ namespace rtAGV_Navigate
                 a_tMap.atNodeLocal[lRegionIndex], a_tMap.alPathTableLocal[lRegionIndex], lNodeNum, ref lPathLength, ref a_atPathInfo);
         }
 
+
+        /// <summary> 搜尋最靠近車體位置的節點 </summary>
+        /// <param name="a_atNodeLocal">[IN] node list </param>
+        /// <param name="a_tCarInfo">[IN] car information </param>
+        /// <returns> The closest node </returns>
         public static NodeId rtAGV_FindCurrentNode(rtAGV_MAP_node[] a_atNodeLocal, rtCarData a_tCarInfo)
         {
             NodeId tNodeId = new NodeId();
@@ -70,6 +84,14 @@ namespace rtAGV_Navigate
             return tNodeId;
         }
 
+        /// <summary> Find Node list of Path to Destination </summary>
+        /// <param name="a_lSrc">[IN] source node </param>
+        /// <param name="a_lDst">[IN] Destination node </param>
+        /// <param name="a_atNodeLocal">[IN] node information in current region </param>
+        /// <param name="a_alMapCurrent">[IN] look up table of node in current region </param>
+        /// <param name="a_lNodeNum">[IN] node number in current region </param>
+        /// <param name="a_lPathLength">[INOUT] wanted path size </param>
+        /// <param name="a_atPathInfo">[INOUT] wanted path </param>
         public static void rtAGV_FindPathNode2Dest(int a_lSrc, int a_lDst, rtAGV_MAP_node[] a_atNodeLocal, int[] a_alMapCurrent, int a_lNodeNum, ref int a_lPathLength, ref rtPath_Info[] a_atPathInfo)
         {
             int lCnt = 0;
@@ -103,6 +125,13 @@ namespace rtAGV_Navigate
             return tNodeId;
         }
 
+        /// <summary> Merge 2 Path </summary>
+        /// <param name="a_lIndexS2D">[IN] Index source to Destination </param>
+        /// <param name="a_lIndexS2C">[IN] Index source to current </param>
+        /// <param name="a_lIndexC2D">[IN] Index current to Destination </param>
+        /// <param name="a_alNodeListNum">[IN] node number in each path </param>
+        /// <param name="a_lNodeNum">[IN] node number if current region </param>
+        /// <param name="a_alNodeListTmp">[INOUT] tmp node list of wanted path </param>
         static void MergePath(int a_lIndexS2D, int a_lIndexS2C, int a_lIndexC2D, int[] a_alNodeListNum, int a_lNodeNum, ref int[][] a_alNodeListTmp)
         {
             int lCntTmp = 0, lCntNodeList = 0;
@@ -140,6 +169,13 @@ namespace rtAGV_Navigate
             }
         }
 
+        /// <summary> Find shortest PATH </summary>
+        /// <param name="a_lSrc">[IN] source node </param>
+        /// <param name="a_lDst">[IN] Destination node </param>
+        /// <param name="a_alMapCurrent">[IN] look up table of node in current region </param>
+        /// <param name="a_lNodeNum">[IN] node number in current region </param>
+        /// <param name="a_lPathLength">[INOUT] wanted path size </param>
+        /// <returns> node list </returns>
         public static int[] FindPathofNode(int a_lSrc, int a_lDst, int[] a_alMapCurrent, int a_lNodeNum, ref int a_lPathLength)
         {
             int[] alPath = new int[0];              // 存路徑節點用
